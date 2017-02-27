@@ -62,6 +62,9 @@ function mime(ext) {
   case 'html':
     mimeType = 'text/html'
     break
+  case 'json':
+    mimeType = 'application/json'
+    break
   default:
     mimeType = 'application/octet-stream'
     break
