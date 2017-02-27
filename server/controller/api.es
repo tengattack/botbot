@@ -51,6 +51,30 @@ const SELECT_QUEUE_SQL = `
 SELECT * FROM ?? WHERE \`resource\` = 0 OR \`utime\` < ? ORDER BY \`hits\` DESC;
 `
 
+function url_parse(_url) {
+  const q = url.parse(_url, true)
+  const query = q.query
+  let dirty = false
+  const dirty_qs = [ '', 't', '_' ]
+  for (const k of dirty_qs) {
+    if (query[k]) {
+      delete query[k]
+      dirty = true
+    }
+  }
+  for (const k in query) {
+    if (!query[k]) {
+      delete query[k]
+      dirty = true
+    }
+  }
+  if (dirty) {
+    let path = q.pathname
+    q.path = q.pathname + url.format({ query })
+  }
+  return q
+}
+
 apiRouter.get('/reset', async function (ctx, next) {
   const r = { code: 200 }
   r.drop = (await db.query(DROP_SQL, [ TABLE_NAME ])) ? true : false
@@ -63,7 +87,7 @@ apiRouter.get('/query', async function (ctx, next) {
   if (!query || !query.url) {
     throw 400
   }
-  const q = url.parse(query.url)
+  const q = url_parse(query.url)
   if (!q) {
     throw 400
   }
@@ -101,7 +125,7 @@ apiRouter.post('/update', async function (ctx, next) {
     || typeof body.resource_path !== 'string') {
     throw 400
   }
-  const q = url.parse(body.url)
+  const q = url_parse(body.url)
   if (!q) {
     throw 400
   }
