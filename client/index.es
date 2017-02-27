@@ -31,7 +31,7 @@ queue.on('error', function (err) {
 
 async function uploadToOss(url, host, path, html) {
   const ossPath = buildConfig['cdn_path'] + `${host}${path === '/' ? '/index.html' : path}`
-  let r = await oss.put_buf(ossPath, html)
+  let r = await oss.put_buf(ossPath, new Buffer(html, 'utf8'))
   const resource_path = r.resource
   r = await req(UPDATE_QUEUE_API, { method: 'POST', json: true, body: { url, resource_path } })
   if (r.code !== 200) {
