@@ -76,7 +76,11 @@ apiRouter.get('/query', async function (ctx, next) {
     const timestamp = Math.floor(Date.now() / 1000)
     r = await db.query(INSERT_QUEUE_SQL, [ TABLE_NAME, q.host, q.path, timestamp, timestamp ])
   } else {
-    requestUrl = OSS_PREFIX + r.resource_path
+    if (parseInt(r.resource)) {
+      requestUrl = OSS_PREFIX + r.resource_path
+    } else {
+      requestUrl = query.url
+    }
     // add hits
     r = await db.query(UPDATE_HITS_SQL, [ TABLE_NAME, r.id ])
   }
