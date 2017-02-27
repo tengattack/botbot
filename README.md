@@ -1,6 +1,6 @@
 # BotBot
 
-A browser page render for MissEvan Web
+A static page generator for search engines' bot.
 
 ## Author
 
