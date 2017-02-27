@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "server": "node --harmony server",
+    "client": "node --harmony client",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -25,11 +26,13 @@
   "dependencies": {
     "babel-core": "^6.23.1",
     "babel-preset-es2017-node7": "^0.4.1",
+    "hat": "0.0.3",
     "koa": "^2.0.0-alpha.8",
     "koa-bodyparser": "^3.2.0",
     "koa-router": "^7.0.1",
     "mysql": "^2.13.0",
     "phantomjs-prebuilt": "^2.1.14",
+    "queue": "^4.2.1",
     "request": "^2.79.0"
   }
 }

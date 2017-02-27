@@ -7,6 +7,9 @@ const config = {
   sys: {
     public_dir,
   },
+  client: {
+    api_path: 'http://localhost:3009/api',
+  },
   server: {
     hostname: '0.0.0.0',
     port: 3009,

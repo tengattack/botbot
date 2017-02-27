@@ -7,7 +7,7 @@ import config from '../../config'
 const apiRouter = new Router({ prefix: '/api' })
 const buildConfig = config['build']
 const CACHE_TIME = config['cache'].time
-const OSS_PREFIX = 'http://' + buildConfig['cdn_host'] + '/' + buildConfig['cdn_path']
+const OSS_PREFIX = 'http://' + buildConfig['cdn_host'] + '/'
 
 /* sqls */
 const TABLE_NAME = 'static_pages'
@@ -71,14 +71,14 @@ apiRouter.get('/query', async function (ctx, next) {
   let r = await db.findOne(FIND_SQL, [ TABLE_NAME, q.host, q.path ])
   let requestUrl
   if (!r) {
+    requestUrl = query.url
     // add queue
     const timestamp = Math.floor(Date.now() / 1000)
     r = await db.query(INSERT_QUEUE_SQL, [ TABLE_NAME, q.host, q.path, timestamp, timestamp ])
-    requestUrl = query.url
   } else {
-    // add hits
-    r = await db.query(UPDATE_HITS_SQL, [ TABLE_NAME, r.id ])
     requestUrl = OSS_PREFIX + r.resource_path
+      // add hits
+    r = await db.query(UPDATE_HITS_SQL, [ TABLE_NAME, r.id ])
   }
   const body = await req(requestUrl)
   if (body) {
