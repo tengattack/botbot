@@ -1,6 +1,8 @@
-
+import logger from 'koa-logger'
 import bodyParser from 'koa-bodyparser'
+import config from '../config'
 
+const serverConfig = config['server']
 const errorList = {
   400: 'Bad Request',
   404: 'Not Found',
@@ -21,5 +23,8 @@ export default function (app) {
       }
     }
   })
+  if (serverConfig['debug']) {
+    app.use(logger())
+  }
   app.use(bodyParser())
 }
