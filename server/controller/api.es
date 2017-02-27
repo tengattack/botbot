@@ -21,11 +21,13 @@ CREATE TABLE ?? (
   \`path\` varchar(255) NOT NULL,
   \`ctime\` int(11) UNSIGNED NOT NULL,
   \`utime\` int(11) UNSIGNED NOT NULL,
+  \`htime\` int(11) UNSIGNED NOT NULL,
   \`hits\` int(11) UNSIGNED NOT NULL DEFAULT '0',
   \`resource\` tinyint(1) UNSIGNED NOT NULL DEFAULT '0',
   \`resource_path\` varchar(255) NOT NULL,
   PRIMARY KEY (id),
   KEY (utime),
+  KEY (htime),
   KEY (host),
   KEY (hits),
   KEY (resource),
@@ -36,16 +38,16 @@ const FIND_SQL = `
 SELECT * FROM ?? WHERE \`host\` = ? AND \`path\` = ? LIMIT 1;
 `
 const INSERT_QUEUE_SQL = `
-INSERT INTO ?? (host, path, ctime, utime, resource, resource_path) VALUES (?, ?, ?, ?, '0', '');
+INSERT INTO ?? (host, path, ctime, utime, htime, resource, resource_path) VALUES (?, ?, ?, ?, ?, '0', '');
 `
 const INSERT_RESOURCE_SQL = `
-INSERT INTO ?? (host, path, ctime, utime, resource, resource_path) VALUES (?, ?, ?, ?, '1', ?);
+INSERT INTO ?? (host, path, ctime, utime, htime, resource, resource_path) VALUES (?, ?, ?, ?, ?, '1', ?);
 `
 const UPDATE_RESOURCE_SQL = `
 UPDATE ?? SET utime = ?, resource_path = ?, resource = '1' WHERE id = ?;
 `
 const UPDATE_HITS_SQL = `
-UPDATE ?? SET hits = hits + 1 WHERE id = ?;
+UPDATE ?? SET hits = hits + 1, htime = ? WHERE id = ?;
 `
 const SELECT_QUEUE_SQL = `
 SELECT * FROM ?? WHERE \`resource\` = 0 OR \`utime\` < ? ORDER BY \`hits\` DESC;
@@ -92,13 +94,13 @@ apiRouter.get('/query', async function (ctx, next) {
     throw 400
   }
 
+  const timestamp = Math.floor(Date.now() / 1000)
   let r = await db.findOne(FIND_SQL, [ TABLE_NAME, q.host, q.path ])
   let requestUrl
   if (!r) {
     requestUrl = query.url
     // add queue
-    const timestamp = Math.floor(Date.now() / 1000)
-    r = await db.query(INSERT_QUEUE_SQL, [ TABLE_NAME, q.host, q.path, timestamp, timestamp ])
+    r = await db.query(INSERT_QUEUE_SQL, [ TABLE_NAME, q.host, q.path, timestamp, timestamp, timestamp ])
   } else {
     if (parseInt(r.resource)) {
       requestUrl = OSS_PREFIX + r.resource_path
@@ -106,7 +108,7 @@ apiRouter.get('/query', async function (ctx, next) {
       requestUrl = query.url
     }
     // add hits
-    r = await db.query(UPDATE_HITS_SQL, [ TABLE_NAME, r.id ])
+    r = await db.query(UPDATE_HITS_SQL, [ TABLE_NAME, timestamp, r.id ])
   }
   const body = await req(requestUrl)
   if (body) {
@@ -147,7 +149,7 @@ apiRouter.post('/update', async function (ctx, next) {
     optype = 'insert'
     // not exists, insert
     r = await db.query(INSERT_RESOURCE_SQL, [
-      TABLE_NAME, q.host, q.path, timestamp, timestamp, resource_path,
+      TABLE_NAME, q.host, q.path, timestamp, timestamp, timestamp, resource_path,
     ])
   }
   ctx.body = { code: 200, [optype]: r }
