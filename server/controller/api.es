@@ -50,7 +50,7 @@ const UPDATE_HITS_SQL = `
 UPDATE ?? SET hits = hits + 1, htime = ? WHERE id = ?;
 `
 const SELECT_QUEUE_SQL = `
-SELECT * FROM ?? WHERE \`resource\` = 0 OR \`utime\` < ? ORDER BY \`hits\` DESC;
+SELECT * FROM ?? ORDER BY \`resource\`, \`hits\` DESC, \`utime\` LIMIT 800;
 `
 
 function url_parse(_url) {
@@ -158,7 +158,8 @@ apiRouter.post('/update', async function (ctx, next) {
 
 apiRouter.get('/queue', async function (ctx, next) {
   const timestamp = Math.floor(Date.now() / 1000)
-  const r = await db.query(SELECT_QUEUE_SQL, [ TABLE_NAME, timestamp - CACHE_TIME ])
+  // , timestamp - CACHE_TIME
+  const r = await db.query(SELECT_QUEUE_SQL, [ TABLE_NAME ])
   ctx.body = { code: 200, list: r }
 })
 
