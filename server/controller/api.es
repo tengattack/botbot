@@ -57,7 +57,7 @@ function url_parse(_url) {
   const q = url.parse(_url, true)
   const query = q.query
   let dirty = false
-  const dirty_qs = [ '', 't', '_' ]
+  const dirty_qs = [ '', 't', '_', 'spm', 'id' ]
   for (const k of dirty_qs) {
     if (query[k]) {
       delete query[k]
