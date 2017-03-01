@@ -85,11 +85,12 @@ apiRouter.get('/reset', async function (ctx, next) {
 })
 
 apiRouter.get('/query', async function (ctx, next) {
-  const query = ctx.request.query
-  if (!query || !query.url) {
+  const qs = ctx.request.querystring
+  if (!qs || !qs.startsWith('url=')) {
     throw 400
   }
-  const q = url_parse(query.url)
+  const qurl = qs.substr(4)
+  const q = url_parse(qurl)
   if (!q) {
     throw 400
   }
@@ -98,14 +99,14 @@ apiRouter.get('/query', async function (ctx, next) {
   let r = await db.findOne(FIND_SQL, [ TABLE_NAME, q.host, q.path ])
   let requestUrl
   if (!r) {
-    requestUrl = query.url
+    requestUrl = qurl
     // add queue
     r = await db.query(INSERT_QUEUE_SQL, [ TABLE_NAME, q.host, q.path, timestamp, timestamp, timestamp ])
   } else {
     if (parseInt(r.resource)) {
       requestUrl = OSS_PREFIX + r.resource_path
     } else {
-      requestUrl = query.url
+      requestUrl = qurl
     }
     // add hits
     r = await db.query(UPDATE_HITS_SQL, [ TABLE_NAME, timestamp, r.id ])
