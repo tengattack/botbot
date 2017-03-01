@@ -16,6 +16,7 @@ const oss = new OSSClient()
 const GET_QUEUE_API = clientConfig.api_path + '/queue'
 const UPDATE_QUEUE_API = clientConfig.api_path + '/update'
 const ROOT_PATH = path.join(__dirname, '..')
+const DATA_URL_REGEX = /\ssrc="data\:.*?"/gi
 const SCRIPT_REGEX = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi
 
 console.log('Concurrency: ' + cpus)
@@ -64,7 +65,7 @@ function addQueue(q) {
             return cb(err)
           }
 
-          const html = data.replace(SCRIPT_REGEX, '')
+          const html = data.replace(SCRIPT_REGEX, '').replace(DATA_URL_REGEX, '')
           const { url, host, path } = q
           uploadToOss(url, host, path, html).then(resource => {
             cb(null, { url, resource })
