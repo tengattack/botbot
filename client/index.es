@@ -11,7 +11,7 @@ import config from '../config'
 const cpus = os.cpus().length
 const clientConfig = config['client']
 const buildConfig = config['build']
-const queue = new Queue({ concurrency: cpus, autostart: true })
+const queue = new Queue({ concurrency: cpus * 2, autostart: true })
 const oss = new OSSClient()
 const GET_QUEUE_API = clientConfig.api_path + '/queue'
 const UPDATE_QUEUE_API = clientConfig.api_path + '/update'
