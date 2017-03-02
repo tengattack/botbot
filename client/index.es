@@ -9,9 +9,10 @@ import OSSClient from '../lib/oss'
 import config from '../config'
 
 const cpus = os.cpus().length
+const concurrency = cpus * 4
 const clientConfig = config['client']
 const buildConfig = config['build']
-const queue = new Queue({ concurrency: cpus * 2, autostart: true })
+const queue = new Queue({ concurrency, autostart: true })
 const oss = new OSSClient()
 const GET_QUEUE_API = clientConfig.api_path + '/queue'
 const UPDATE_QUEUE_API = clientConfig.api_path + '/update'
@@ -19,7 +20,7 @@ const ROOT_PATH = path.join(__dirname, '..')
 const DATA_URL_REGEX = /\ssrc="data\:.*?"/gi
 const SCRIPT_REGEX = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi
 
-console.log('Concurrency: ' + cpus)
+console.log('Concurrency: ' + concurrency)
 
 queue.on('success', function (result, job) {
   const { url, resource } = result
