@@ -30,6 +30,19 @@ queue.on('error', function (err) {
   console.log('error', err)
 })
 
+function urlMap(url) {
+  const urlMaps = clientConfig['url_maps']
+  if (!urlMaps) {
+    return url
+  }
+  for (const map of urlMaps) {
+    if (map.test.test(url)) {
+      url = url.replace(map.test, map.replacer)
+    }
+  }
+  return url
+}
+
 async function uploadToOss(url, host, path, html) {
   const ossPath = buildConfig['cdn_path'] + `${host}${path.endsWith('/') ? path + 'index.html' : path}`
   let r = await oss.put_buf(ossPath, new Buffer(html, 'utf8'), 'text/html')
@@ -44,7 +57,7 @@ async function uploadToOss(url, host, path, html) {
 function addQueue(q) {
   const runName = hat(64)
   queue.push(function (cb) {
-    const phantom = spawn('node', [ 'node_modules/.bin/phantomjs', 'browser.js', q.url, runName ], { cwd: ROOT_PATH })
+    const phantom = spawn('node', [ 'node_modules/.bin/phantomjs', 'browser.js', urlMap(q.url), runName ], { cwd: ROOT_PATH })
     let stdout = ''
     let stderr = ''
     phantom.stdout.on('data', (data) => {

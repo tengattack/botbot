@@ -9,6 +9,9 @@ const config = {
   },
   client: {
     api_path: 'http://localhost:3009/api',
+    url_maps: [
+      { test: /example\/(\d+?)/i, replacer: 'd/$1' },
+    ],
   },
   server: {
     hostname: '0.0.0.0',
