@@ -77,7 +77,21 @@ function onNetworkFinish() {
   phantom.exit()
 }
 
-function rewaitNework() {
+var networkResources = {}
+var networkCounter = 0
+function rewaitNework(type, id, url) {
+  switch (type) {
+  case 'requested':
+    networkCounter++
+    networkResources[id] = url
+    break
+  case 'received':
+    if (networkResources[id]) {
+      delete networkResources[id]
+      networkCounter--
+    }
+    break
+  }
   if (!page_ready) {
     return
   }
@@ -86,7 +100,7 @@ function rewaitNework() {
   } else {
     console.log('detected network traffic')
   }
-  t_net = setTimeout(onNetworkFinish, 1000)
+  t_net = setTimeout(onNetworkFinish, networkCounter <= 0 ? 1000 : 20000)
 }
 
 function onLoaded() {
@@ -102,6 +116,7 @@ function onLoaded() {
       window.document.body.scrollTop += 100
       if (window.document.body.scrollTop >= document.body.scrollHeight - window.innerHeight) {
         clearTimeout(_t)
+        localStorage.clear()
         if (typeof window.callPhantom === 'function') {
           window.callPhantom('SCROLL_DONE')
         }
@@ -111,10 +126,12 @@ function onLoaded() {
 }
 
 page.onResourceRequested = function (request) {
-  rewaitNework()
+  rewaitNework('requested', request.id, request.url)
 }
 page.onResourceReceived = function (response) {
-  rewaitNework()
+  if (response.stage === 'end') {
+    rewaitNework('received', response.id)
+  }
 }
 
 var t = null
