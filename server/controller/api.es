@@ -53,9 +53,7 @@ const SELECT_QUEUE_SQL = `
 SELECT * FROM ?? ORDER BY \`resource\`, \`hits\` DESC, \`utime\` LIMIT 800;
 `
 
-function url_parse(_url) {
-  const q = url.parse(_url, true)
-  const query = q.query
+function removeDirty(query) {
   let dirty = false
   const dirty_qs = [ '', 't', '_', 'spm', 'id', '_t', '_id' ]
   for (const k of dirty_qs) {
@@ -70,10 +68,21 @@ function url_parse(_url) {
       dirty = true
     }
   }
-  if (dirty) {
-    let path = q.pathname
-    q.path = q.pathname + url.format({ query })
+  return dirty
+}
+
+function url_parse(_url) {
+  const q = url.parse(_url, true)
+  // if (removeDirty(q.query)) {
+  //   let path = q.pathname
+  //   q.path = q.pathname + url.format({ query })
+  // }
+  const s = q.pathname.split('/')
+  if (s.length >= 3 && s[s.length - 1] === '') {
+    // remove last slash
+    q.pathname = q.pathname.substr(0, q.pathname.length - 1)
   }
+  q.path = q.pathname
   return q
 }
 
