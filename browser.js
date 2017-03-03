@@ -10,7 +10,7 @@ var opts = {}
 
 function exitAndPrintUsage() {
   console.log('Usage:\n'
-    + '\tphantomjs index.js [options] [url] [name]')
+    + '\tphantomjs browser.js [options] [url] [name]')
   phantom.exit()
 }
 
@@ -57,6 +57,17 @@ if (opts.mobileView) {
 }
 page.onConsoleMessage = function (msg) {
   console.log('console message: ' + msg)
+}
+page.onError = function (msg, trace) {
+  const msgStack = [ 'error: ' + msg ]
+  if (trace && trace.length) {
+    msgStack.push('TRACE:')
+    trace.forEach(function (t) {
+      msgStack.push(' -> ' + (t.file || t.sourceURL) + ': '
+        + t.line + (t.function ? ' (in function ' + t.function +')' : ''))
+    })
+  }
+  console.error(msgStack.join('\n'))
 }
 page.onCallback = function (data) {
   if (data === SCROLL_DONE) {
@@ -139,6 +150,7 @@ page.open(pageUrl, function (status) {
   console.log('status: ' + status)
   if (t) {
     clearTimeout(t)
+    t = null
   }
   if (status === 'success') {
     onLoaded()
@@ -150,4 +162,4 @@ page.open(pageUrl, function (status) {
 t = setTimeout(function () {
   t = null
   onLoaded()
-}, 10000)
+}, 20000)

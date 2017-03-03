@@ -1,6 +1,6 @@
 {
   "name": "botbot",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "A static page generator for search engines' bot.",
   "main": "index.js",
   "scripts": {

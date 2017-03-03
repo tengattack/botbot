@@ -4,16 +4,22 @@ import path from 'path'
 import { spawn } from 'child_process'
 import hat from 'hat'
 import Queue from 'queue'
+import phantomjs from 'phantomjs-prebuilt'
 import req from '../lib/req'
 import OSSClient from '../lib/oss'
 import config from '../config'
 
 const cpus = os.cpus().length
-const concurrency = cpus * 4
+const concurrency = cpus * 2
 const clientConfig = config['client']
 const buildConfig = config['build']
-const queue = new Queue({ concurrency, autostart: true })
+const queue = new Queue({
+  concurrency,
+  timeout: clientConfig.timeout || 3 * 60 * 1000,
+  autostart: true,
+})
 const oss = new OSSClient()
+
 const GET_QUEUE_API = clientConfig.api_path + '/queue'
 const UPDATE_QUEUE_API = clientConfig.api_path + '/update'
 const ROOT_PATH = path.join(__dirname, '..')
@@ -27,8 +33,14 @@ queue.on('success', function (result, job) {
   console.log('success', url, '=>', resource)
 })
 
-queue.on('error', function (err) {
-  console.log('error', err)
+queue.on('error', function (err, job) {
+  console.log('error', job.context.url, err)
+})
+
+queue.on('timeout', function (next, job) {
+  console.log('timeout', job.context.url, job.stdout)
+  job.phantom.kill()
+  next()
 })
 
 function urlMap(url) {
@@ -55,23 +67,22 @@ async function uploadToOss(url, host, path, html) {
   return resource_path
 }
 
-function addQueue(q) {
+function newJob(q) {
   const runName = hat(64)
-  queue.push(function (cb) {
-    const phantom = spawn('node', [ 'node_modules/.bin/phantomjs', 'browser.js', urlMap(q.url), runName ], { cwd: ROOT_PATH })
-    let stdout = ''
-    let stderr = ''
+  const job = function (cb) {
+    const phantom = spawn(phantomjs.path, [ 'browser.js', urlMap(q.url), runName ], { cwd: ROOT_PATH })
+    job.phantom = phantom
     phantom.stdout.on('data', (data) => {
-      stdout += data.toString()
+      job.stdout += data.toString()
     })
     phantom.stderr.on('data', (data) => {
-      stderr += data.toString()
+      job.stderr += data.toString()
     })
     phantom.on('close', (code) => {
-      // console.log(stdout)
-      if (stderr) {
-        // console.error(stderr)
-      }
+      // console.log(job.stdout)
+      // if (job.stderr) {
+      //   console.log(job.stderr)
+      // }
       if (code === 0) {
         const filePath = path.join(ROOT_PATH, 'pages/' + runName + '.html')
         fs.readFile(filePath, 'utf8', function (err, data) {
@@ -92,10 +103,19 @@ function addQueue(q) {
           fs.unlink(filePath, function () {})
         })
       } else {
-        cb(stderr)
+        cb(job.stderr)
       }
     })
-  })
+  }
+  job.id = runName
+  job.context = q
+  job.stdout = ''
+  job.stderr = ''
+  return job
+}
+
+function addQueue(q) {
+  queue.push(newJob(q))
 }
 
 async function main() {
@@ -115,4 +135,6 @@ async function main() {
   }
 }
 
-main()
+main().catch(err => {
+  console.log(err)
+})

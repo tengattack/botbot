@@ -9,6 +9,7 @@ const config = {
   },
   client: {
     api_path: 'http://localhost:3009/api',
+    timeout: 3 * 60 * 1000,
     url_maps: [
       { test: /example\/(\d+?)/i, replacer: 'd/$1' },
     ],
