@@ -50,7 +50,7 @@ const UPDATE_HITS_SQL = `
 UPDATE ?? SET hits = hits + 1, htime = ? WHERE id = ?;
 `
 const SELECT_QUEUE_SQL = `
-SELECT * FROM ?? ORDER BY \`resource\`, \`hits\` DESC, \`utime\` LIMIT 800;
+SELECT * FROM ?? ORDER BY \`resource\`, \`utime\`, \`hits\` DESC LIMIT 800;
 `
 
 function removeDirty(query) {
