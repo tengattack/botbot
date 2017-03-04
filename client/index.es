@@ -23,7 +23,9 @@ const oss = new OSSClient()
 const GET_QUEUE_API = clientConfig.api_path + '/queue'
 const UPDATE_QUEUE_API = clientConfig.api_path + '/update'
 const ROOT_PATH = path.join(__dirname, '..')
+
 const DATA_URL_REGEX = /\ssrc="data\:.*?"/gi
+const EMBED_REGEX = /<embed[^>]*>/gi
 const SCRIPT_REGEX = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi
 
 console.log('Concurrency: ' + concurrency)
@@ -54,6 +56,13 @@ function urlMap(url) {
     }
   }
   return url
+}
+
+function htmlFilter(html) {
+  // remove script, embed, data-url
+  return html.replace(SCRIPT_REGEX, '')
+          .replace(EMBED_REGEX, '')
+          .replace(DATA_URL_REGEX, '')
 }
 
 async function uploadToOss(url, host, path, html) {
@@ -90,7 +99,7 @@ function newJob(q) {
             return cb(err)
           }
 
-          const html = data.replace(SCRIPT_REGEX, '').replace(DATA_URL_REGEX, '')
+          const html = htmlFilter(data)
           const { url, host, path } = q
           uploadToOss(url, host, path, html).then(resource => {
             cb(null, { url, resource })
