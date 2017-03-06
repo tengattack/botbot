@@ -1,5 +1,6 @@
 #!/usr/bin/env babel-node
 
+import path from 'path'
 import fs from 'fs'
 import OSSClient from './lib/oss'
 import CDNClient from './lib/cdn'
@@ -37,17 +38,51 @@ const cdnHost = config['build'].cdn_host
 const oss = new OSSClient()
 const cdn = new CDNClient()
 
+function getFiles(dirpath) {
+  let files = []
+  const _files = fs.readdirSync(dirpath)
+  for (const filePath of _files) {
+    if (filePath.startsWith('.')) {
+      continue
+    }
+    const f = path.join(dirpath, filePath)
+    const stats = fs.statSync(f)
+    if (stats.isDirectory()) {
+      files = [ ...files, ...getFiles(f) ]
+    } else {
+      files.push(f)
+    }
+  }
+  return files
+}
+
 async function main() {
   let r
   if (args.type === 'put' || args.type === 'update') {
     console.log('reading', args.file)
-    const buf = fs.readFileSync(args.file)
-
-    console.log('uploading', args.cdn_path)
-    r = await oss.put_buf(args.cdn_path, buf, args.mimeType)
-    if (args.type === 'update' && r) {
-      console.log('refreshing', args.cdn_path)
-      r = await cdn.refreshCaches(cdnHost + '/' + args.cdn_path)
+    const stats = fs.statSync(args.file)
+    const isDirectory = stats.isDirectory()
+    if (isDirectory) {
+      const files = getFiles(args.file)
+      for (const filePath of files) {
+        const relativePath = path.relative(args.file, filePath)
+        const cdnPath = args.cdn_path + relativePath
+        const buf = fs.readFileSync(filePath)
+        console.log('uploading', cdnPath)
+        r = await oss.put_buf(cdnPath, buf, args.mimeType)
+        if (args.type === 'update' && r) {
+          console.log('refreshing', cdnPath)
+          r = await cdn.refreshCaches(cdnHost + '/' + cdnPath)
+        }
+      }
+    } else {
+      const buf = fs.readFileSync(args.file)
+      console.log('uploading', args.cdn_path)
+      r = await oss.put_buf(args.cdn_path, buf, args.mimeType)
+      if (args.type === 'update' && r) {
+        console.log('refreshing', args.cdn_path)
+        r = await cdn.refreshCaches(cdnHost + '/' + args.cdn_path)
+      }
     }
   } else if (args.type === 'delete') {
     console.log('deleteing', args.cdn_path)
