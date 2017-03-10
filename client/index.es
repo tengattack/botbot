@@ -10,7 +10,7 @@ import OSSClient from '../lib/oss'
 import config from '../config'
 
 const cpus = os.cpus().length
-const concurrency = cpus * 2
+const concurrency = cpus * 1
 const clientConfig = config['client']
 const buildConfig = config['build']
 const queue = new Queue({
