@@ -6,6 +6,7 @@ import config from '../../config'
 
 const apiRouter = new Router({ prefix: '/api' })
 const buildConfig = config['build']
+const serverConfig = config['server']
 const CACHE_TIME = config['cache'].time
 const OSS_PREFIX = 'http://' + buildConfig['cdn_host'] + '/'
 
@@ -86,6 +87,19 @@ function url_parse(_url) {
   return q
 }
 
+function url_rewrite(url) {
+  const urlRewrites = serverConfig['rewrite']
+  if (!urlRewrites) {
+    return
+  }
+  for (const rewrite of urlRewrites) {
+    if (rewrite.test.test(url)) {
+      return url.replace(rewrite.test, rewrite.replacer)
+    }
+  }
+  return
+}
+
 apiRouter.get('/reset', async function (ctx, next) {
   const r = { code: 200 }
   r.drop = (await db.query(DROP_SQL, [ TABLE_NAME ])) ? true : false
@@ -99,6 +113,12 @@ apiRouter.get('/query', async function (ctx, next) {
     throw 400
   }
   const qurl = qs.substr(4)
+  const rurl = url_rewrite(qurl)
+  if (rurl) {
+    ctx.status = 301
+    ctx.set('Location', rurl)
+    return
+  }
   const q = url_parse(qurl)
   if (!q) {
     throw 400
