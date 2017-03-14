@@ -54,36 +54,57 @@ const SELECT_QUEUE_SQL = `
 SELECT * FROM ?? ORDER BY \`resource\`, \`utime\`, \`hits\` DESC LIMIT 800;
 `
 
-function removeDirty(query) {
+function removeDirty(query, params) {
   let dirty = false
-  const dirty_qs = [ '', 't', '_', 'spm', 'id', '_t', '_id' ]
-  for (const k of dirty_qs) {
-    if (query[k]) {
-      delete query[k]
-      dirty = true
+  if (params && params.length) {
+    for (const k in query) {
+      if (!params.includes(k)) {
+        delete query[k]
+        dirty = true
+      }
     }
-  }
-  for (const k in query) {
-    if (!query[k]) {
-      delete query[k]
-      dirty = true
+  } else {
+    const dirty_qs = [ '', 't', '_', 'spm', 'id', '_t', '_id' ]
+    for (const k of dirty_qs) {
+      if (query[k]) {
+        delete query[k]
+        dirty = true
+      }
+    }
+    for (const k in query) {
+      if (!query[k]) {
+        delete query[k]
+        dirty = true
+      }
     }
   }
   return dirty
 }
 
+function checkUrlParams(url, query) {
+  const urlParams = serverConfig['url_params']
+  if (!urlParams) {
+    return
+  }
+  for (const p of urlParams) {
+    if (p.test.test(url)) {
+      return removeDirty(query, urlParams)
+    }
+  }
+}
+
 function url_parse(_url) {
   const q = url.parse(_url, true)
-  // if (removeDirty(q.query)) {
-  //   let path = q.pathname
-  //   q.path = q.pathname + url.format({ query })
-  // }
   const s = q.pathname.split('/')
   if (s.length >= 3 && s[s.length - 1] === '') {
     // remove last slash
     q.pathname = q.pathname.substr(0, q.pathname.length - 1)
   }
-  q.path = q.pathname
+  if (checkUrlParams(url, q.query)) {
+    q.path = q.pathname + url.format({ query })
+  } else {
+    q.path = q.pathname
+  }
   return q
 }
 
