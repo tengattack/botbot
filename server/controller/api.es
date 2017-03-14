@@ -88,7 +88,7 @@ function checkUrlParams(url, query) {
   }
   for (const p of urlParams) {
     if (p.test.test(url)) {
-      return removeDirty(query, urlParams)
+      return removeDirty(query, p.params)
     }
   }
 }
