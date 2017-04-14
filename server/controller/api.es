@@ -61,6 +61,8 @@ function removeDirty(query, params) {
       if (!params.includes(k)) {
         delete query[k]
         dirty = true
+      } else {
+        dirty = true
       }
     }
   } else {
@@ -100,8 +102,8 @@ function url_parse(_url) {
     // remove last slash
     q.pathname = q.pathname.substr(0, q.pathname.length - 1)
   }
-  if (checkUrlParams(url, q.query)) {
-    q.path = q.pathname + url.format({ query })
+  if (checkUrlParams(_url, q.query)) {
+    q.path = q.pathname + '/' + url.format({ query: q.query })
   } else {
     q.path = q.pathname
   }

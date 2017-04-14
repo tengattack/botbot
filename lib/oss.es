@@ -57,11 +57,16 @@ export default class OSSClient {
     const { accessKeyId } = this.config
     return `OSS ${accessKeyId}:${signature}`
   }
+  encodeName(resource) {
+    return resource.replace(/[?&=]/g,
+      c => '%' + c.charCodeAt(0).toString(16).toUpperCase())
+  }
   url(resource, bucketName) {
     const { endpoint } = this.config
     if (!bucketName) {
       bucketName = this.bucket
     }
+    resource = this.encodeName(resource)
     return `http://${bucketName}.${endpoint}/${resource}`
   }
   resp_promise_cb(resolve, reject, data) {
@@ -164,7 +169,7 @@ export default class OSSClient {
           'Authorization': self.authorization(signature),
         },
         body: data,
-      }, self.resp_promise_cb(resolve, reject, { resource: filename }))
+      }, self.resp_promise_cb(resolve, reject, { resource: self.encodeName(filename) }))
     })
   }
   put(file, dir) {
