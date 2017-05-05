@@ -128,6 +128,7 @@ export default class OSSClient {
           ...ossHeaders,
         },
         body: data,
+        gzip: true,
       }, self.resp_promise_cb(resolve, reject, { bucket: name }))
     })
   }
@@ -145,6 +146,7 @@ export default class OSSClient {
           'Date': d.toGMTString(),
           'Authorization': self.authorization(signature),
         },
+        gzip: true,
       }, self.resp_promise_cb(resolve, reject, true))
     })
   }
@@ -169,6 +171,7 @@ export default class OSSClient {
           'Authorization': self.authorization(signature),
         },
         body: data,
+        gzip: true,
       }, self.resp_promise_cb(resolve, reject, { resource: self.encodeName(filename) }))
     })
   }
@@ -209,6 +212,7 @@ export default class OSSClient {
           'Date': d.toGMTString(),
           'Authorization': self.authorization(signature),
         },
+        gzip: true,
       }, self.resp_promise_cb(resolve, reject, true))
     })
   }

@@ -68,6 +68,7 @@ export default class CDNClient {
           'Content-Type': 'application/json',
         },
         json: true,
+        gzip: true,
         form,
       }, self.resp_promise_cb(resolve, reject))
     })
