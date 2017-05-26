@@ -56,6 +56,32 @@ function getFiles(dirpath) {
   return files
 }
 
+function showProgress(written, total) {
+  const s = written === total ? '100%' : (written * 100 / total).toFixed('1') + '%'
+  process.stdout.write(s + '   \r')
+}
+
+async function upload(filePath, cdnPath, needUpdate) {
+  const stat = fs.statSync(filePath)
+  const buf = fs.createReadStream(filePath)
+  console.log('uploading', cdnPath)
+  let bytesLoaded = 0
+  buf.on('data', function (chunk) {
+    showProgress(bytesLoaded, stat.size)
+    bytesLoaded += chunk.length
+  }).on('end', function () {
+    showProgress(bytesLoaded, stat.size)
+    bytesLoaded = stat.size
+  })
+  let r = await oss.put_buf(cdnPath, buf, args.mimeType)
+  showProgress(bytesLoaded, stat.size)
+  if (needUpdate && r) {
+    console.log('refreshing', cdnPath)
+    r = await cdn.refreshCaches(cdnHost + '/' + cdnPath)
+  }
+  return r
+}
+
 async function main() {
   let r
   if (args.type === 'put' || args.type === 'update') {
@@ -67,22 +93,10 @@ async function main() {
       for (const filePath of files) {
         const relativePath = path.relative(args.file, filePath)
         const cdnPath = args.cdn_path + relativePath
-        const buf = fs.readFileSync(filePath)
-        console.log('uploading', cdnPath)
-        r = await oss.put_buf(cdnPath, buf, args.mimeType)
-        if (args.type === 'update' && r) {
-          console.log('refreshing', cdnPath)
-          r = await cdn.refreshCaches(cdnHost + '/' + cdnPath)
-        }
+        r = await upload(filePath, cdnPath, args.type === 'update')
       }
     } else {
-      const buf = fs.readFileSync(args.file)
-      console.log('uploading', args.cdn_path)
-      r = await oss.put_buf(args.cdn_path, buf, args.mimeType)
-      if (args.type === 'update' && r) {
-        console.log('refreshing', args.cdn_path)
-        r = await cdn.refreshCaches(cdnHost + '/' + args.cdn_path)
-      }
+      r = await upload(args.file, args.cdn_path, args.type === 'update')
     }
   } else if (args.type === 'delete') {
     console.log('deleteing', args.cdn_path)
