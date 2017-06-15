@@ -91,7 +91,10 @@ async function main() {
     if (isDirectory) {
       const files = getFiles(args.file)
       for (const filePath of files) {
-        const relativePath = path.relative(args.file, filePath)
+        let relativePath = path.relative(args.file, filePath)
+        if (path.sep !== '/') {
+          relativePath = relativePath.split(path.sep).join('/')
+        }
         const cdnPath = args.cdn_path + relativePath
         r = await upload(filePath, cdnPath, args.type === 'update')
       }
