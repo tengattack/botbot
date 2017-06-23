@@ -45,6 +45,9 @@ const config = {
     accessKeySecret: '[keySecret]',
     endpoint: '[endpoint]',
   },
+  slb: {
+    regionId: 'cn-east-hangzhou-01',
+  },
 }
 
 export default config

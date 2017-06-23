@@ -10,6 +10,8 @@ const CDN_API = 'https://cdn.aliyuncs.com/'
 export default class CDNClient {
   constructor(conf) {
     this.config = conf || config['oss']
+    this.api = CDN_API
+    this.version = '2014-11-11'
   }
   signature(verb, params) {
     const { accessKeyId, accessKeySecret } = this.config
@@ -18,7 +20,7 @@ export default class CDNClient {
     const ISODate = d.toISOString().split('.')[0] + 'Z'
     params = {
       Format: 'JSON',
-      Version: '2014-11-11',
+      Version: this.version,
       AccessKeyId: accessKeyId,
       SignatureMethod: 'HMAC-SHA1',
       TimeStamp: ISODate,
@@ -63,7 +65,7 @@ export default class CDNClient {
 
       request({
         method: 'POST',
-        uri: CDN_API,
+        uri: this.api,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -88,6 +90,16 @@ export default class CDNClient {
       Action: 'RefreshObjectCaches',
       ObjectPath: objectPath,
       ObjectType: type,
+    })
+  }
+  setCertificate(domain, name, pubkey, privkey) {
+    return this.request({
+      Action: 'SetDomainServerCertificate',
+      DomainName: domain,
+      CertName: name,
+      ServerCertificateStatus: 'on',
+      ServerCertificate: pubkey,
+      PrivateKey: privkey,
     })
   }
 }
