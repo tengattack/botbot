@@ -1,4 +1,5 @@
 import url from 'url'
+import request from 'request'
 import Router from 'koa-router'
 import db from '../../lib/db'
 import req from '../../lib/req'
@@ -9,6 +10,8 @@ const buildConfig = config['build']
 const serverConfig = config['server']
 const CACHE_TIME = config['cache'].time
 const OSS_PREFIX = 'http://' + buildConfig['cdn_host'] + '/'
+
+const BAIDUZZ = config['server'].baiduzz
 
 /* sqls */
 const TABLE_NAME = 'static_pages'
@@ -205,6 +208,9 @@ apiRouter.post('/update', async function (ctx, next) {
       TABLE_NAME, q.host, q.path, timestamp, timestamp, timestamp, resource_path,
     ])
   }
+
+  request.post(BAIDUZZ, { form: body.url, gzip: true })
+
   ctx.body = { code: 200, [optype]: r }
 })
 
