@@ -18,7 +18,10 @@ const config = {
     hostname: '0.0.0.0',
     port: 3009,
     debug: true,
-    baiduzz: 'http://data.zz.baidu.com/urls?site=www.missevan.com&token=AAAA',
+    baiduzz: {
+      site: 'www.example.com',
+      token: 'AAAA',
+    },
     url_params: [
       { test: /\/\/example.com\/search/, params: [ 's', 'p' ] },
     ],

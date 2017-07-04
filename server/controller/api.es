@@ -12,6 +12,8 @@ const CACHE_TIME = config['cache'].time
 const OSS_PREFIX = 'http://' + buildConfig['cdn_host'] + '/'
 
 const BAIDUZZ = config['server'].baiduzz
+const BAIDUZZ_NEW_URL = 'http://data.zz.baidu.com/urls'
+const BAIDUZZ_UPDATE_URL = 'http://data.zz.baidu.com/update'
 
 /* sqls */
 const TABLE_NAME = 'static_pages'
@@ -194,14 +196,17 @@ apiRouter.post('/update', async function (ctx, next) {
 
   let r = await db.findOne(FIND_SQL, [ TABLE_NAME, q.host, q.path ])
   const timestamp = Math.floor(Date.now() / 1000)
+  let isNew
   let optype
   if (r) {
+    isNew = !parseInt(r.resource)
     optype = 'update'
     // exists, update
     r = await db.query(UPDATE_RESOURCE_SQL, [
       TABLE_NAME, timestamp, resource_path, r.id,
     ])
   } else {
+    isNew = true
     optype = 'insert'
     // not exists, insert
     r = await db.query(INSERT_RESOURCE_SQL, [
@@ -209,7 +214,11 @@ apiRouter.post('/update', async function (ctx, next) {
     ])
   }
 
-  request.post(BAIDUZZ, { form: body.url, gzip: true })
+  if (isNew) {
+    request.post(BAIDUZZ_NEW_URL, { qs: BAIDUZZ, form: body.url, gzip: true })
+  } else {
+    // request.post(BAIDUZZ_UPDATE_URL, { qs: BAIDUZZ, form: body.url, gzip: true })
+  }
 
   ctx.body = { code: 200, [optype]: r }
 })
