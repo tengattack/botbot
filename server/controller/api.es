@@ -152,22 +152,28 @@ apiRouter.get('/query', async function (ctx, next) {
     throw 400
   }
 
-  const timestamp = Math.floor(Date.now() / 1000)
-  let r = await db.findOne(FIND_SQL, [ TABLE_NAME, q.host, q.path ])
   let requestUrl
-  if (!r) {
-    requestUrl = qurl
-    // add queue
-    r = await db.query(INSERT_QUEUE_SQL, [ TABLE_NAME, q.host, q.path, timestamp, timestamp, timestamp ])
-  } else {
-    if (parseInt(r.resource)) {
-      requestUrl = OSS_PREFIX + r.resource_path
-    } else {
+  try {
+    const timestamp = Math.floor(Date.now() / 1000)
+    let r = await db.findOne(FIND_SQL, [ TABLE_NAME, q.host, q.path ])
+    if (!r) {
       requestUrl = qurl
+      // add queue
+      r = await db.query(INSERT_QUEUE_SQL, [ TABLE_NAME, q.host, q.path, timestamp, timestamp, timestamp ])
+    } else {
+      if (parseInt(r.resource)) {
+        requestUrl = OSS_PREFIX + r.resource_path
+      } else {
+        requestUrl = qurl
+      }
+      // add hits
+      r = await db.query(UPDATE_HITS_SQL, [ TABLE_NAME, timestamp, r.id ])
     }
-    // add hits
-    r = await db.query(UPDATE_HITS_SQL, [ TABLE_NAME, timestamp, r.id ])
+  } catch (e) {
+    console.error(new Date(), 'query error, fallback to original url', e)
+    requestUrl = qurl
   }
+
   const body = await req(requestUrl)
   if (body) {
     ctx.body = body
