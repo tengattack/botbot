@@ -1,8 +1,9 @@
 
 import fs from 'fs'
 import request from 'request'
+import ReadableStreamClone from 'readable-stream-clone'
 
-import { md5, base64, hmac_sha1, mime, file_ext } from './common'
+import { md5, md5Async, base64, hmac_sha1, mime, file_ext } from './common'
 import config from '../config'
 
 export default class OSSClient {
@@ -58,8 +59,7 @@ export default class OSSClient {
     return `OSS ${accessKeyId}:${signature}`
   }
   encodeName(resource) {
-    return resource.replace(/[?&=]/g,
-      c => '%' + c.charCodeAt(0).toString(16).toUpperCase())
+    return encodeURIComponent(resource)
   }
   url(resource, bucketName) {
     const { endpoint } = this.config
@@ -150,30 +150,42 @@ export default class OSSClient {
       }, self.resp_promise_cb(resolve, reject, true))
     })
   }
-  put_buf(filename, data, mimeType) {
+  put_buf(filename, data, mimeType, md5 = '') {
     const self = this
-    return new Promise((resolve, reject) => {
+    const p = (resolve, reject) => {
       if (!mimeType) {
         const ext = file_ext(filename)
         mimeType = mime(ext)
       }
       const d = new Date()
       const ossUrl = self.url(filename)
-      const signature = self.signature('PUT', filename, '', mimeType, d)
-
+      const signature = self.signature('PUT', filename, md5, mimeType, d)
+      
       request({
         method: 'PUT',
         uri: ossUrl,
         headers: {
           'Content-Length': data.length,
           'Content-Type': mimeType,
+          'Content-MD5': md5,
           'Date': d.toGMTString(),
           'Authorization': self.authorization(signature),
         },
         body: data,
         gzip: true,
       }, self.resp_promise_cb(resolve, reject, { resource: self.encodeName(filename) }))
-    })
+    }
+    if (!md5) {
+      const s1 = new ReadableStreamClone(data)
+      const s2 = new ReadableStreamClone(data)
+      data = s2
+      return md5Async(s1, 'base64')
+              .then(_md5 => {
+                md5 = _md5
+                return new Promise(p)
+              })
+    }
+    return new Promise(p)
   }
   put(file, dir) {
     const self = this
@@ -192,7 +204,7 @@ export default class OSSClient {
 
         const filename = `${dir}/${datePath}/${fileMD5}${ext}`
 
-        self.put_buf(filename, data, mimeType)
+        self.put_buf(filename, data, mimeType, data)
             .then(resolve)
             .catch(reject)
       })

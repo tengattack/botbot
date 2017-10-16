@@ -2,6 +2,7 @@
 
 import path from 'path'
 import fs from 'fs'
+import { md5Async } from './lib/common'
 import OSSClient from './lib/oss'
 import CDNClient from './lib/cdn'
 import config from './config'
@@ -63,8 +64,11 @@ function showProgress(written, total) {
 
 async function upload(filePath, cdnPath, needUpdate) {
   const stat = fs.statSync(filePath)
-  const buf = fs.createReadStream(filePath)
+  const bufForMD5 = fs.createReadStream(filePath)
+  process.stdout.write(`hashing ${cdnPath}\r`)
+  const md5 = await md5Async(bufForMD5, 'base64')
   console.log('uploading', cdnPath)
+  const buf = fs.createReadStream(filePath)
   let bytesLoaded = 0
   buf.on('data', function (chunk) {
     showProgress(bytesLoaded, stat.size)
@@ -73,7 +77,10 @@ async function upload(filePath, cdnPath, needUpdate) {
     showProgress(bytesLoaded, stat.size)
     bytesLoaded = stat.size
   })
-  let r = await oss.put_buf(cdnPath, buf, args.mimeType)
+  let r = await oss.put_buf(cdnPath, buf, args.mimeType, md5)
+    .catch(err => {
+      console.error(err)
+    })
   showProgress(bytesLoaded, stat.size)
   if (needUpdate && r) {
     console.log('refreshing', cdnPath)
@@ -89,7 +96,7 @@ async function main() {
     const stats = fs.statSync(args.file)
     const isDirectory = stats.isDirectory()
     if (isDirectory) {
-      const files = getFiles(args.file)
+      const files = getFiles(args.file).sort()
       for (const filePath of files) {
         let relativePath = path.relative(args.file, filePath)
         if (path.sep !== '/') {

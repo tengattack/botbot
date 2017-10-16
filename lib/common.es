@@ -7,6 +7,20 @@ function md5(str) {
   md5.update(str)
   return md5.digest('hex')
 }
+function md5Async(stream, encoding = 'hex') {
+  return new Promise(function (resolve, reject) {
+    const md5 = crypto.createHash('md5')
+    md5.setEncoding(encoding)
+    stream.on('end', function () {
+      md5.end()
+      resolve(md5.read())
+    })
+    stream.on('error', function (err) {
+      reject(err)
+    })
+    stream.pipe(md5)
+  })
+}
 function base64(str) {
   return new Buffer(str).toString('base64')
 }
@@ -59,11 +73,15 @@ function mime(ext) {
   case 'css':
     mimeType = 'text/css'
     break
+  case 'htm':
   case 'html':
     mimeType = 'text/html'
     break
   case 'json':
     mimeType = 'application/json'
+    break
+  case 'flv':
+    mimeType = 'video/x-flv'
     break
   default:
     mimeType = 'application/octet-stream'
@@ -116,6 +134,7 @@ function parseTime(stime, currentTime) {
 
 export {
   md5,
+  md5Async,
   base64,
   sha1,
   hmac_sha1,
