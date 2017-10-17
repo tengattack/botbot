@@ -90,7 +90,7 @@ async function upload(filePath, cdnPath, needUpdate) {
   })
   let r = await oss.put_buf(cdnPath, buf, args.mimeType, md5)
     .catch(err => {
-      console.error(err)
+      console.error(filePath, '=>', cdnPath, err)
     })
   showProgress(bytesLoaded, stat.size)
   if (needUpdate && r) {
