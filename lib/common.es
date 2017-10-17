@@ -80,6 +80,9 @@ function mime(ext) {
   case 'json':
     mimeType = 'application/json'
     break
+  case 'mp4':
+    mimeType = 'video/mp4'
+    break
   case 'flv':
     mimeType = 'video/x-flv'
     break
