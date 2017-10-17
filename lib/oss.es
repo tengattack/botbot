@@ -1,6 +1,7 @@
 
 import fs from 'fs'
 import request from 'request'
+import xml2js from 'xml2js'
 import ReadableStreamClone from 'readable-stream-clone'
 
 import { md5, md5Async, base64, hmac_sha1, mime, file_ext } from './common'
@@ -61,12 +62,25 @@ export default class OSSClient {
   encodeName(resource) {
     return encodeURIComponent(resource)
   }
-  url(resource, bucketName) {
+  url(resource, query, bucketName) {
     const { endpoint } = this.config
+    if (typeof query === 'string') {
+      bucketName = query
+      query = null
+    }
     if (!bucketName) {
       bucketName = this.bucket
     }
     resource = this.encodeName(resource)
+    if (query) {
+      const qs = []
+      for (const key in query) {
+        qs.push(`${key}=${query[key]}`)
+      }
+      if (qs.length > 0) {
+        resource += '?' + qs.join('&')
+      }
+    }
     return `http://${bucketName}.${endpoint}/${resource}`
   }
   resp_promise_cb(resolve, reject, data) {
@@ -74,7 +88,16 @@ export default class OSSClient {
       if (err) {
         reject(err)
       } else if ([ 200, 204 ].includes(resp.statusCode)) {
-        resolve(data)
+        if (data) {
+          resolve(data)
+        } else {
+          xml2js.parseString(body, (err, result) => {
+            if (err) {
+              return reject(err)
+            }
+            resolve(result)
+          })
+        }
       } else {
         const e = {
           code: -1,
@@ -160,7 +183,7 @@ export default class OSSClient {
       const d = new Date()
       const ossUrl = self.url(filename)
       const signature = self.signature('PUT', filename, md5, mimeType, d)
-      
+
       request({
         method: 'PUT',
         uri: ossUrl,
@@ -226,6 +249,42 @@ export default class OSSClient {
         },
         gzip: true,
       }, self.resp_promise_cb(resolve, reject, true))
+    })
+  }
+  list(prefix, delimiter = '') {
+    const self = this
+    return new Promise((resolve, reject) => {
+      const resource = '', maxKeys = 1000
+      let marker = ''
+      let files = []
+
+      const p = function (result) {
+        if (result && result.ListBucketResult) {
+          const { IsTruncated, NextMarker, Contents } = result.ListBucketResult
+          files = [ ...files, ...Contents.map(content => content.Key[0]) ]
+          if (IsTruncated[0] === 'true') {
+            marker = NextMarker[0]
+          } else {
+            return resolve(files)
+          }
+        }
+        const d = new Date()
+        const ossUrl = self.url(resource, {
+          prefix, marker, delimiter, 'max-keys': maxKeys,
+        })
+        const signature = self.signature('GET', resource, '', '', d)
+        request({
+          method: 'GET',
+          uri: ossUrl,
+          headers: {
+            'Date': d.toGMTString(),
+            'Authorization': self.authorization(signature),
+          },
+          gzip: true,
+        }, self.resp_promise_cb(p, reject))
+      }
+
+      p()
     })
   }
 }
