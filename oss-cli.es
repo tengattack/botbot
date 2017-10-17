@@ -2,7 +2,6 @@
 
 import path from 'path'
 import fs from 'fs'
-import _ from 'lodash'
 import { md5Async } from './lib/common'
 import OSSClient from './lib/oss'
 import CDNClient from './lib/cdn'
@@ -22,7 +21,7 @@ if (process.argv.length > 2) {
   args.type = process.argv[2]
   if ((args.type === 'put' || args.type === 'update') && process.argv.length > 4) {
     let i = 3
-    if (process.argv === '-c') {
+    if (process.argv[i] === '-c') {
       // do continue upload
       args.continue = true
       i++
@@ -107,10 +106,12 @@ async function main() {
     const stats = fs.statSync(args.file)
     const isDirectory = stats.isDirectory()
     if (isDirectory) {
-      let files = getFiles(args.file).sort()
+      const files = getFiles(args.file).sort()
+      let existsFiles
       if (args.continue) {
-        const existsFiles = await oss.list(args.cdn_path)
-        files = _.difference(files, existsFiles)
+        console.log('listing files')
+        existsFiles = await oss.list(args.cdn_path)
+        r = true
       }
       for (const filePath of files) {
         let relativePath = path.relative(args.file, filePath)
@@ -118,6 +119,11 @@ async function main() {
           relativePath = relativePath.split(path.sep).join('/')
         }
         const cdnPath = args.cdn_path + relativePath
+        if (args.continue) {
+          if (existsFiles.includes(cdnPath)) {
+            continue
+          }
+        }
         r = await upload(filePath, cdnPath, args.type === 'update')
       }
     } else {
