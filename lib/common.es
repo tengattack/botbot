@@ -83,6 +83,9 @@ function mime(ext) {
   case 'flv':
     mimeType = 'video/x-flv'
     break
+  case 'mp3':
+    mimeType = 'audio/mpeg'
+    break
   default:
     mimeType = 'application/octet-stream'
     break
