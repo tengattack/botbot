@@ -73,8 +73,8 @@ async function main() {
     r = await slb.getLoadBalancers()
     for (const lb of r.LoadBalancers.LoadBalancer) {
       const _lb = await slb.getLoadBalancer(lb.LoadBalancerId)
-      const pp = _lb.ListenerPortsAndProtocal.ListenerPortAndProtocal.find(hasHttps)
-      if (pp) {
+      const pps = _lb.ListenerPortsAndProtocal.ListenerPortAndProtocal.filter(hasHttps)
+      for (const pp of pps) {
         r = await slb.getLoadBalancerAttribute(lb.LoadBalancerId, pp.ListenerProtocal, pp.ListenerPort)
         let opts = getPropertites(r, [
           'Bandwidth',
