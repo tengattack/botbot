@@ -1,5 +1,6 @@
 
 import fs from 'fs'
+import stream from 'stream'
 import request from 'request'
 import xml2js from 'xml2js'
 import ReadableStreamClone from 'readable-stream-clone'
@@ -60,7 +61,7 @@ export default class OSSClient {
     return `OSS ${accessKeyId}:${signature}`
   }
   encodeName(resource) {
-    return encodeURIComponent(resource)
+    return encodeURI(resource)
   }
   url(resource, query, bucketName) {
     const { endpoint } = this.config
@@ -199,6 +200,15 @@ export default class OSSClient {
       }, self.resp_promise_cb(resolve, reject, { resource: self.encodeName(filename) }))
     }
     if (!md5) {
+	  if (Buffer.isBuffer(data)) {
+	    const s1 = new stream.PassThrough();
+		s1.end(data);
+	    return md5Async(s1, 'base64')
+              .then(_md5 => {
+                md5 = _md5
+                return new Promise(p)
+              })
+	  } else {
       const s1 = new ReadableStreamClone(data)
       const s2 = new ReadableStreamClone(data)
       data = s2
@@ -207,6 +217,7 @@ export default class OSSClient {
                 md5 = _md5
                 return new Promise(p)
               })
+      }
     }
     return new Promise(p)
   }

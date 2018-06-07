@@ -1,0 +1,6 @@
+.git* text eol=lf
+.*rc text eol=lf
+*.es text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf

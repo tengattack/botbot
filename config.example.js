@@ -52,6 +52,9 @@ const config = {
   slb: {
     regionId: 'cn-east-hangzhou-01',
   },
+  ecs: {
+    regionId: 'cn-hangzhou',
+  },
 }
 
 export default config
