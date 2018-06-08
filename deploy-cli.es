@@ -30,6 +30,24 @@ function hasHttps(pp) {
   }
 }
 
+function isServerMatch(s, name) {
+  const np = name.split(':')
+  if (s.ServerName === np[0]) {
+    // server name match
+    if (np.length > 1) {
+      // name with port
+      if (s.Port === parseInt(np[1])) {
+        // port matched
+        return true
+      }
+    } else {
+      // only server name
+      return true
+    }
+  }
+  return false
+}
+
 function wait(t) {
   return new Promise((resolve) => {
     setTimeout(resolve, t)
@@ -126,7 +144,7 @@ async function main() {
       let dirty = false
       let backendServers = []
       _lb.BackendServers.BackendServer.forEach((s) => {
-        if (s.Weight > 0 && ecses[s.ServerId] === serverName) {
+        if (s.Weight > 0 && isServerMatch({ ...s, ServerName: ecses[s.ServerId] }, serverName)) {
           dirty = true
           backendServers.push({ ...s, Weight: 0 })
         } else {
@@ -155,7 +173,7 @@ async function main() {
         dirty = false
         backendServers = []
         _vg.BackendServers.BackendServer.forEach((s) => {
-          if (s.Weight > 0 && ecses[s.ServerId] === serverName) {
+          if (s.Weight > 0 && isServerMatch({ ...s, ServerName: ecses[s.ServerId] }, serverName)) {
             dirty = true
             backendServers.push({ ...s, Weight: 0 })
           } else {
@@ -193,14 +211,22 @@ async function main() {
       if (scriptFileName.includes(' '))  {
         throw new Error("script name has spaces")
       }
-      console.log('$ scp "%s" %s:%s', args.script_file, serverName, '~/' + scriptFileName)
-      r = await spawnAsync('scp', [ args.script_file, serverName + ':~/' + scriptFileName ])
-      console.log('$ ssh "%s" chmod +x %s', serverName, '~/' + scriptFileName)
-      r = await spawnAsync('ssh', [ serverName, 'chmod', '+x', '~/' + scriptFileName ])
-      console.log('$ ssh "%s" %s', serverName, '~/' + scriptFileName)
-      r = await spawnAsync('ssh', [ serverName, '~/' + scriptFileName ])
-      console.log('$ ssh "%s" rm %s', serverName, '~/' + scriptFileName)
-      r = await spawnAsync('ssh', [ serverName, 'rm', '~/' + scriptFileName ])
+      const targetServer = {}
+      if (serverName.indexOf(':') >= 0) {
+        const t = serverName.split(':')
+        targetServer.ServerName = t[0]
+        targetServer.Port = parseInt(t[1])
+      } else {
+        targetServer.ServerName = serverName
+      }
+      console.log('$ scp "%s" %s:%s', args.script_file, targetServer.ServerName, '~/' + scriptFileName)
+      r = await spawnAsync('scp', [ args.script_file, targetServer.ServerName + ':~/' + scriptFileName ])
+      console.log('$ ssh "%s" chmod +x %s', targetServer.ServerName, '~/' + scriptFileName)
+      r = await spawnAsync('ssh', [ targetServer.ServerName, 'chmod', '+x', '~/' + scriptFileName ])
+      console.log('$ ssh "%s" %s "%s"', targetServer.ServerName, '~/' + scriptFileName, serverName)
+      r = await spawnAsync('ssh', [ targetServer.ServerName, '~/' + scriptFileName, serverName ])
+      console.log('$ ssh "%s" rm %s', targetServer.ServerName, '~/' + scriptFileName)
+      r = await spawnAsync('ssh', [ targetServer.ServerName, 'rm', '~/' + scriptFileName ])
     } catch (e) {
       hasErrors = true
       console.log(e)
