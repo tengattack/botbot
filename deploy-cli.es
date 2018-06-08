@@ -124,7 +124,7 @@ async function main() {
       const lbName = _lb.LoadBalancerName
 
       let dirty = false
-      const backendServers = []
+      let backendServers = []
       _lb.BackendServers.BackendServer.forEach((s) => {
         if (s.Weight > 0 && ecses[s.ServerId] === serverName) {
           dirty = true
@@ -151,7 +151,9 @@ async function main() {
       const lbvg = lbvgs[lb.LoadBalancerId]
       for (const vg of lbvg.VServerGroups.VServerGroup) {
         const _vg = vgs[vg.VServerGroupId]
+        // reset variables
         dirty = false
+        backendServers = []
         _vg.BackendServers.BackendServer.forEach((s) => {
           if (s.Weight > 0 && ecses[s.ServerId] === serverName) {
             dirty = true
