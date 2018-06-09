@@ -9,14 +9,45 @@ import ECSClient from './lib/ecs'
 import config from './config'
 
 function printHelpExit() {
-  console.log('./deploy-cli.es [servers] [script_file]')
+  console.log('./deploy-cli.es [--weight=X] servers [script_file]')
   process.exit(1)
 }
 
+const availableOpts = { 'weight': 'int' }
 const args = {}
 if (process.argv.length > 3) {
-  args.servers = process.argv[2].split(',')
-  args.script_file = process.argv[3]
+  for (let i = 2; i < process.argv.length; i++) {
+    if (process.argv[i].startsWith('--')) {
+      let opt = process.argv[i].substr(2)
+      let value
+      if (opt.indexOf('=') >= 0) {
+        [ opt, value ] = opt.split('=')
+      } else if (i + 1 < process.argv.length) {
+        value = process.argv[++i]
+      } else {
+        console.error('missing option `%s` value', opt)
+        printHelpExit()
+      }
+      const type = availableOpts[opt]
+      switch (type) {
+      case 'int':
+        value = parseInt(value)
+        if (isNaN(value)) {
+          console.error('incorrect option `%s` value', opt)
+          printHelpExit()
+        }
+        break
+      default:
+        console.error('unknown option `%s`', opt)
+        printHelpExit()
+      }
+      args[opt] = value
+    } else if (!args.servers) {
+      args.servers = process.argv[i].split(',')
+    } else {
+      args.script_file = process.argv[i]
+    }
+  }
 } else {
   printHelpExit()
 }
@@ -52,6 +83,40 @@ function wait(t) {
   return new Promise((resolve) => {
     setTimeout(resolve, t)
   })
+}
+
+function messageWeight(r, newWeight, lbName, serverName, vServerGroupName) {
+  if ('weight' in args) {
+    // set weight
+    if (vServerGroupName) {
+      console.log('slb `' + lbName
+        + '` set `' + serverName + '`\'s weight to ' + newWeight
+        + ' from vserver `' + vServerGroupName + '` ' + (r ? 'succeeded' : 'failed') + '!')
+    } else {
+      console.log('slb `' + lbName
+        + '` set `' + serverName + '`\'s weight to ' + newWeight
+        + ' from backend servers ' + (r ? 'succeeded' : 'failed') + '!')
+    }
+  } else if (newWeight === 0) {
+    if (vServerGroupName) {
+      console.log('slb `' + lbName
+        + '` remove `' + serverName
+        + '` from vserver `' + vServerGroupName + '` ' + (r ? 'succeeded' : 'failed') + '!')
+    } else {
+      console.log('slb `' + lbName
+        + '` remove `' + serverName
+        + '` from backend servers ' + (r ? 'succeeded' : 'failed') + '!')
+    }
+  } else {
+    // set back
+    if (vServerGroupName) {
+      console.log('slb `' + lbName + '` set `' + serverName
+        + '` back to vserver `' + vServerGroupName + '` ' + (r ? 'succeeded' : 'failed') + '!')
+    } else {
+      console.log('slb `' + lbName + '` set `' + serverName
+        + '` back to backend servers ' + (r ? 'succeeded' : 'failed') + '!')
+    }
+  }
 }
 
 function spawnAsync(command, args, opts) {
@@ -135,6 +200,10 @@ async function main() {
     })
   } while (p * r.PageSize < r.TotalCount)
 
+  let newWeight = 0
+  if ('weight' in args) {
+    newWeight = args.weight
+  }
   for (const serverName of args.servers) {
     const dirtyLbs = []
     for (const lb of _lbs.LoadBalancers.LoadBalancer) {
@@ -144,9 +213,10 @@ async function main() {
       let dirty = false
       let backendServers = []
       _lb.BackendServers.BackendServer.forEach((s) => {
-        if (s.Weight > 0 && isServerMatch({ ...s, ServerName: ecses[s.ServerId] }, serverName)) {
+        if (('weight' in args || s.Weight > 0)
+            && isServerMatch({ ...s, ServerName: ecses[s.ServerId] }, serverName)) {
           dirty = true
-          backendServers.push({ ...s, Weight: 0 })
+          backendServers.push({ ...s, Weight: newWeight })
         } else {
           backendServers.push(s)
         }
@@ -158,11 +228,7 @@ async function main() {
       if (dirty) {
         dirtyLb.BackendServers = _lb.BackendServers
         r = await slb.setBackendServers(lb.LoadBalancerId, backendServers)
-        if (!r) {
-          console.log('slb `' + lbName + '` remove `' + serverName + '` from load balancer failed!')
-        } else {
-          console.log('slb `' + lbName + '` remove `' + serverName + '` from load balancer succeeded!')
-        }
+        messageWeight(r, newWeight, lbName, serverName)
       }
 
       // vserver group
@@ -173,9 +239,10 @@ async function main() {
         dirty = false
         backendServers = []
         _vg.BackendServers.BackendServer.forEach((s) => {
-          if (s.Weight > 0 && isServerMatch({ ...s, ServerName: ecses[s.ServerId] }, serverName)) {
+          if (('weight' in args || s.Weight > 0)
+              && isServerMatch({ ...s, ServerName: ecses[s.ServerId] }, serverName)) {
             dirty = true
-            backendServers.push({ ...s, Weight: 0 })
+            backendServers.push({ ...s, Weight: newWeight })
           } else {
             backendServers.push(s)
           }
@@ -190,11 +257,7 @@ async function main() {
             BackendServers: _vg.BackendServers,
           })
           r = await slb.setVServerGroupAttribute(vg.VServerGroupId, vg.VServerGroupName, backendServers)
-          if (!r) {
-            console.log('slb `' + lbName + '` vserver `' + vg.VServerGroupName + '` remove `' + serverName + '` from load balancer failed!')
-          } else {
-            console.log('slb `' + lbName + '` vserver `' + vg.VServerGroupName + '` remove `' + serverName + '` from load balancer succeeded!')
-          }
+          messageWeight(r, newWeight, lbName, serverName, vg.VServerGroupName)
         }
       }
 
@@ -204,34 +267,42 @@ async function main() {
       }
     }
 
-    let hasErrors = false
-    console.log('start running script on `' + serverName + '`')
-    try {
-      const scriptFileName = path.basename(args.script_file)
-      if (scriptFileName.includes(' '))  {
-        throw new Error("script name has spaces")
+    if (args.script_file) {
+      let hasErrors = false
+      console.log('start running script on `' + serverName + '`')
+      try {
+        const scriptFileName = path.basename(args.script_file)
+        if (scriptFileName.includes(' '))  {
+          throw new Error("script name has spaces")
+        }
+        const targetServer = {}
+        if (serverName.indexOf(':') >= 0) {
+          const t = serverName.split(':')
+          targetServer.ServerName = t[0]
+          targetServer.Port = parseInt(t[1])
+        } else {
+          targetServer.ServerName = serverName
+        }
+        console.log('$ scp "%s" %s:%s', args.script_file, targetServer.ServerName, '~/' + scriptFileName)
+        r = await spawnAsync('scp', [ args.script_file, targetServer.ServerName + ':~/' + scriptFileName ])
+        console.log('$ ssh "%s" chmod +x %s', targetServer.ServerName, '~/' + scriptFileName)
+        r = await spawnAsync('ssh', [ targetServer.ServerName, 'chmod', '+x', '~/' + scriptFileName ])
+        console.log('$ ssh "%s" %s "%s"', targetServer.ServerName, '~/' + scriptFileName, serverName)
+        r = await spawnAsync('ssh', [ targetServer.ServerName, '~/' + scriptFileName, serverName ])
+        console.log('$ ssh "%s" rm %s', targetServer.ServerName, '~/' + scriptFileName)
+        r = await spawnAsync('ssh', [ targetServer.ServerName, 'rm', '~/' + scriptFileName ])
+      } catch (e) {
+        hasErrors = true
+        console.log(e)
+        console.log('errors occurred.')
+        return
       }
-      const targetServer = {}
-      if (serverName.indexOf(':') >= 0) {
-        const t = serverName.split(':')
-        targetServer.ServerName = t[0]
-        targetServer.Port = parseInt(t[1])
-      } else {
-        targetServer.ServerName = serverName
-      }
-      console.log('$ scp "%s" %s:%s', args.script_file, targetServer.ServerName, '~/' + scriptFileName)
-      r = await spawnAsync('scp', [ args.script_file, targetServer.ServerName + ':~/' + scriptFileName ])
-      console.log('$ ssh "%s" chmod +x %s', targetServer.ServerName, '~/' + scriptFileName)
-      r = await spawnAsync('ssh', [ targetServer.ServerName, 'chmod', '+x', '~/' + scriptFileName ])
-      console.log('$ ssh "%s" %s "%s"', targetServer.ServerName, '~/' + scriptFileName, serverName)
-      r = await spawnAsync('ssh', [ targetServer.ServerName, '~/' + scriptFileName, serverName ])
-      console.log('$ ssh "%s" rm %s', targetServer.ServerName, '~/' + scriptFileName)
-      r = await spawnAsync('ssh', [ targetServer.ServerName, 'rm', '~/' + scriptFileName ])
-    } catch (e) {
-      hasErrors = true
-      console.log(e)
-      console.log('errors occurred.')
-      return
+    }
+
+    if ('weight' in args) {
+      // weight setting mode
+      // set weight & run script only
+      continue
     }
 
     for (const lb of dirtyLbs) {
@@ -240,22 +311,14 @@ async function main() {
       if (lb.BackendServers) {
         // set back backend servers
         r = await slb.setBackendServers(lb.LoadBalancerId, lb.BackendServers.BackendServer)
-        if (!r) {
-          console.log('slb `' + lbName + '` set back failed!')
-        } else {
-          console.log('slb `' + lbName + '` set back succeeded!')
-        }
+        messageWeight(r, NaN, lbName, serverName)
       }
 
       if (lb.VServerGroups) {
         for (const vg of lb.VServerGroups) {
           // set back vserver backend servers
           r = await slb.setVServerGroupAttribute(vg.VServerGroupId, vg.VServerGroupName, vg.BackendServers.BackendServer)
-          if (!r) {
-            console.log('slb `' + lbName + '` vserver `' + vg.VServerGroupName + '` set back failed!')
-          } else {
-            console.log('slb `' + lbName + '` vserver `' + vg.VServerGroupName + '` set back succeeded!')
-          }
+          messageWeight(r, NaN, lbName, serverName, vg.VServerGroupName)
         }
       }
     }
