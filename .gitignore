@@ -3,5 +3,6 @@ npm-debug.log
 
 pages/*.html
 pages/*.png
+repos/
 
 config.js

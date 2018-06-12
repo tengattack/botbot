@@ -55,6 +55,13 @@ const config = {
   ecs: {
     regionId: 'cn-hangzhou',
   },
+  github: {
+    repo_path: './repos',
+    access_token: 'xxx',
+    base_scripts: {
+      'tengattack/botbot': 'cd /path/to/botbot && git pull',
+    },
+  },
 }
 
 export default config
