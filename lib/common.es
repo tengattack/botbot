@@ -1,4 +1,5 @@
 
+import { spawn } from 'child_process'
 import crypto from 'crypto'
 import config from '../config'
 
@@ -138,6 +139,37 @@ function parseTime(stime, currentTime) {
   return d.valueOf()
 }
 
+function spawnAsync(command, args, opts) {
+  console.log('$ ' + command + ' ' + args.join(' '))
+  const print = 'print' in opts ? opts.print : true
+  delete opts.print
+  return new Promise((resolve, reject) => {
+    const cmd = spawn(command, args, opts)
+    let stdout = ''
+    let stderr = ''
+    cmd.stdout.on('data', (data) => {
+      if (print) process.stdout.write(data)
+      stdout += data.toString()
+    })
+    cmd.stderr.on('data', (data) => {
+      if (print) process.stdout.write(data)
+      stderr += data.toString()
+    })
+    cmd.on('close', (code) => {
+      const ret = {
+        code,
+        stdout,
+        stderr,
+      }
+      if (code === 0) {
+        resolve(ret)
+      } else {
+        reject(ret)
+      }
+    })
+  })
+}
+
 export {
   md5,
   md5Async,
@@ -150,4 +182,5 @@ export {
   file_ext,
   formatTime,
   parseTime,
+  spawnAsync,
 }

@@ -4,6 +4,7 @@ import { spawn } from 'child_process'
 import fs from 'fs-extra'
 import path from 'path'
 import { ArgumentParser } from 'argparse'
+import { spawnAsync } from './lib/common'
 import GithubClient from './lib/github'
 import config from './config'
 import { start } from 'repl';
@@ -18,49 +19,47 @@ const parser = new ArgumentParser({
 parser.addArgument([ '-P', '--project' ], {
   help: 'Specify project, eg. tengattack/botbot',
 })
-parser.addArgument([ '-S', '--since' ], {
+parser.addArgument([ '-s', '--since' ], {
   help: 'Get from commits which more recent than a specific date',
   isOptional: true,
 })
-parser.addArgument([ '-O', '--output' ], {
+parser.addArgument([ '--output' ], {
   help: 'Set output script path',
+})
+parser.addArgument([ '--output-sql' ], {
+  help: 'Set output sql path',
 })
 
 const args = parser.parseArgs()
 
-if (!args.project || !args.output) {
+if (!args.project || !args.output || !args.output_sql) {
   parser.exit(1, 'No enough arguments\n\n' + parser.formatUsage())
 }
 
-function spawnAsync(command, args, opts) {
-  console.log('$ ' + command + ' ' + args.join(' '))
-  const print = 'print' in opts ? opts.print : true
-  delete opts.print
-  return new Promise((resolve, reject) => {
-    const cmd = spawn(command, args, opts)
-    let stdout = ''
-    let stderr = ''
-    cmd.stdout.on('data', (data) => {
-      if (print) process.stdout.write(data)
-      stdout += data.toString()
-    })
-    cmd.stderr.on('data', (data) => {
-      if (print) process.stdout.write(data)
-      stderr += data.toString()
-    })
-    cmd.on('close', (code) => {
-      const ret = {
-        code,
-        stdout,
-        stderr,
+function getScripts(pull, comment, type) {
+  const body = comment.body.replace(/\r/g, '')
+  const scripts = []
+  let startIndex = 0
+  while (startIndex >= 0) {
+    startIndex = body.indexOf('```' + type + '\n', startIndex)
+    if (startIndex >= 0) {
+      let endIndex = body.indexOf('\n```', startIndex + 5)
+      if (endIndex >= 0) {
+        // keep end newline
+        const script = body.substr(startIndex + 6, endIndex - (startIndex + 6))
+        console.log(script)
+        const m = script.match(/^# schedule: (\S*)/)
+        let schedule = 'after-pull' // default schedule
+        if (m) {
+          schedule = m[1]
+        }
+        scripts.push({ schedule, pull, script, author: comment.user.login })
+        endIndex += 4
       }
-      if (code === 0) {
-        resolve(ret)
-      } else {
-        reject(ret)
-      }
-    })
-  })
+      startIndex = endIndex
+    }
+  }
+  return scripts
 }
 
 async function main(args) {
@@ -107,6 +106,7 @@ async function main(args) {
   const prRegex = /#(\d+)/
 
   const scripts = []
+  const sqls = []
   for (let i = lines.length - 1; i >= 0; i--) {
     const m = lines[i].match(prRegex)
     if (m) {
@@ -114,34 +114,63 @@ async function main(args) {
       console.log('scanning pull request #' + pullNum + '\'s comments')
       const comments = await github.getIssueComments(project, pullNum)
       for (const comment of comments) {
-        comment.body = comment.body.replace(/\r/g, '')
-        const startIndex = comment.body.indexOf('```sh\n')
-        if (startIndex >= 0) {
-          const endIndex = comment.body.indexOf('\n```', startIndex + 5)
-          if (endIndex >= 0) {
-            // keep end newline
-            const script = comment.body.substr(startIndex + 6, endIndex - (startIndex + 6))
-            console.log(script)
-            scripts.push({ pull: pullNum, script, author: comment.user.login })
-          }
+        let s = getScripts(pullNum, comment, 'sh')
+        if (s && s.length > 0) {
+          scripts.push(...s)
+        }
+        s = getScripts(pullNum, comment, 'sql')
+        if (s && s.length > 0) {
+          sqls.push(...s)
         }
       }
     }
   }
 
   if (scripts.length > 0) {
+    const scheduleList = [ 'before-pull', 'pull', 'after-pull', 'before-sql', 'after-sql' ]
     let allScript = '#!/bin/sh\n\n'
     const baseScript = githubConfig.base_scripts && project in githubConfig.base_scripts
       ? githubConfig.base_scripts[project] : ''
-    if (baseScript) {
-      allScript += '# base script\n'
-        + baseScript + '\n\n'
+
+    allScript += 'if [ "$2" == "" ]; then\n'
+    if (typeof baseScript === 'string') {
+      allScript += '# base script\n' + baseScript + '\n\n'
     }
-    for (let i = 0; i < scripts.length; i++) {
-      allScript += '# from pull request #' + scripts[i].pull + ' ' + scripts[i].author + '\n'
-        + scripts[i].script + '\n\n'
+    if (typeof baseScript === 'object' && 'cwd' in baseScript) {
+      allScript += '# base script (cwd)\ncd ' + baseScript['cwd'] + '\n\n'
     }
+    for (const schedule of scheduleList) {
+      if (schedule === 'after-sql') {
+        allScript += 'fi\n\nif [ "$2" == "after-sql" ]; then\n'
+        if (typeof baseScript === 'object' && 'cwd' in baseScript) {
+          allScript += '# base script (cwd)\ncd ' + baseScript['cwd'] + '\n\n'
+        }
+      }
+      if (typeof baseScript === 'object') {
+        if (schedule in baseScript) {
+          allScript += '# base script (' + schedule + ')\n' + baseScript[schedule] + '\n\n'
+        }
+      }
+      scripts.filter((s) => s.schedule === schedule).forEach((s) => {
+        allScript += '# from pull request #' + s.pull + ' ' + s.author + ' (' + schedule + ')\n'
+          + s.script + '\n\n'
+      })
+    }
+    allScript += 'fi\n'
+
     await fs.writeFile(args.output, allScript)
+
+    let allSQL = ''
+    if (typeof baseScript === 'object' && 'sql' in baseScript) {
+      allSQL += '-- base script\n' + baseScript['sql'] + '\n\n'
+    }
+    sqls.filter((s) => s.schedule !== 'none').forEach((s) => {
+      allSQL += '-- from pull request #' + s.pull + ' ' + s.author + '\n'
+        + s.script + '\n\n'
+    })
+    if (allSQL) {
+      await fs.writeFile(args.output_sql, allSQL)
+    }
   } else {
     console.log('No extra script need to run.')
   }

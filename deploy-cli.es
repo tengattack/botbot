@@ -1,19 +1,21 @@
 #!/usr/bin/env babel-node
 
-import { spawn } from 'child_process'
+import readline from 'readline'
 import path from 'path'
-import fs from 'fs'
+import fs from 'fs-extra'
 import _ from 'lodash'
+import { spawnAsync } from './lib/common'
+import DB from './lib/db'
 import SLBClient from './lib/slb'
 import ECSClient from './lib/ecs'
 import config from './config'
 
 function printHelpExit() {
-  console.log('./deploy-cli.es [--weight=X] servers [script_file]')
+  console.log('./deploy-cli.es [--weight=X] [--sql=X.sql] servers [script_file]')
   process.exit(1)
 }
 
-const availableOpts = { 'weight': 'int' }
+const availableOpts = { 'weight': 'int', 'sql': 'string' }
 const args = {}
 if (process.argv.length > 3) {
   for (let i = 2; i < process.argv.length; i++) {
@@ -37,6 +39,8 @@ if (process.argv.length > 3) {
           printHelpExit()
         }
         break
+      case 'string':
+        break
       default:
         console.error('unknown option `%s`', opt)
         printHelpExit()
@@ -54,12 +58,6 @@ if (process.argv.length > 3) {
 
 const slb = new SLBClient()
 const ecs = new ECSClient()
-
-function hasHttps(pp) {
-  if (pp.ListenerProtocal === 'https') {
-    return true
-  }
-}
 
 function isServerMatch(s, name) {
   const np = name.split(':')
@@ -119,34 +117,6 @@ function messageWeight(r, newWeight, lbName, serverName, vServerGroupName) {
   }
 }
 
-function spawnAsync(command, args, opts) {
-  return new Promise((resolve, reject) => {
-    const cmd = spawn(command, args, opts)
-    let stdout = ''
-    let stderr = ''
-    cmd.stdout.on('data', (data) => {
-      process.stdout.write(data)
-      stdout += data.toString()
-    })
-    cmd.stderr.on('data', (data) => {
-      process.stdout.write(data)
-      stderr += data.toString()
-    })
-    cmd.on('close', (code) => {
-      const ret = {
-        code,
-        stdout,
-        stderr,
-      }
-      if (code === 0) {
-        resolve(ret)
-      } else {
-        reject(ret)
-      }
-    })
-  })
-}
-
 function getPropertites(d, properties, check) {
   const r = {}
   for (const prop of properties) {
@@ -161,7 +131,7 @@ function getPropertites(d, properties, check) {
   return r
 }
 
-async function main() {
+async function runScriptOnServers(args, stage) {
   let serverIds = []
   const ecses = {}
   const lbs = {}
@@ -283,19 +253,20 @@ async function main() {
         } else {
           targetServer.ServerName = serverName
         }
-        console.log('$ scp "%s" %s:%s', args.script_file, targetServer.ServerName, '~/' + scriptFileName)
+        let cmds
         r = await spawnAsync('scp', [ args.script_file, targetServer.ServerName + ':~/' + scriptFileName ])
-        console.log('$ ssh "%s" chmod +x %s', targetServer.ServerName, '~/' + scriptFileName)
         r = await spawnAsync('ssh', [ targetServer.ServerName, 'chmod', '+x', '~/' + scriptFileName ])
-        console.log('$ ssh "%s" %s "%s"', targetServer.ServerName, '~/' + scriptFileName, serverName)
-        r = await spawnAsync('ssh', [ targetServer.ServerName, '~/' + scriptFileName, serverName ])
-        console.log('$ ssh "%s" rm %s', targetServer.ServerName, '~/' + scriptFileName)
+        cmds = [ targetServer.ServerName, '~/' + scriptFileName, serverName ]
+        if (stage) {
+          cmds.push(stage)
+        }
+        r = await spawnAsync('ssh', cmds)
         r = await spawnAsync('ssh', [ targetServer.ServerName, 'rm', '~/' + scriptFileName ])
       } catch (e) {
         hasErrors = true
         console.log(e)
         console.log('errors occurred.')
-        return
+        throw e
       }
     }
 
@@ -321,6 +292,45 @@ async function main() {
           messageWeight(r, NaN, lbName, serverName, vg.VServerGroupName)
         }
       }
+    }
+  }
+}
+
+async function main() {
+  await runScriptOnServers(args)
+
+  if (args.sql) {
+    const sql = await fs.readFile(args.sql, 'utf8')
+    console.log('ready to import SQL:\n' + sql)
+
+    let answer = await new Promise((resolve) => {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      })
+      rl.question('confirm to import? (y/n): ', function (ret) {
+        rl.close()
+        resolve(ret)
+      })
+    })
+    answer = answer.trim()
+    if (answer !== 'y') {
+      console.log('user canceled sql import.')
+    } else {
+      const db = new DB({
+        ...config['db'],
+        multipleStatements: true,
+      })
+      try {
+        const results = await db.query(sql)
+        console.log('SQL results:')
+        for (const result of results) {
+          console.log(result.message)
+        }
+      } catch (e) {
+        console.log('SQL query error:', e)
+      }
+      await db.close()
     }
   }
 

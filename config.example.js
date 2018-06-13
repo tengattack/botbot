@@ -59,7 +59,10 @@ const config = {
     repo_path: './repos',
     access_token: 'xxx',
     base_scripts: {
-      'tengattack/botbot': 'cd /path/to/botbot && git pull',
+      'tengattack/botbot': {
+        'cwd': '/path/to/botbot',
+        'pull': 'git pull',
+      },
     },
   },
 }

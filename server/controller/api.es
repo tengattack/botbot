@@ -1,7 +1,7 @@
 import url from 'url'
 import request from 'request'
 import Router from 'koa-router'
-import db from '../../lib/db'
+import db from '../lib/db'
 import req from '../../lib/req'
 import config from '../../config'
 
