@@ -99,7 +99,8 @@ async function main(args) {
     }
   }
 
-  let ret = await spawnAsync('git', [ 'log', '--oneline', '--since=' + (lastInfo.last_time + 1), '-P', '--grep=\'#[0-9]+\'' ], { cwd: repoPath, print: false })
+  let ret = await spawnAsync('git', [ '--no-pager', 'log', '--oneline', '--since=' + (lastInfo.last_time + 1), '--grep=\'#[0-9]\\+\'' ],
+    { cwd: repoPath, shell: true, print: false })
 
   const lines = ret.stdout.split('\n')
   const prRegex = /#(\d+)/
