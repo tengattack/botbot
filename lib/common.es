@@ -141,8 +141,11 @@ function parseTime(stime, currentTime) {
 
 function spawnAsync(command, args, opts) {
   console.log('$ ' + command + ' ' + args.join(' '))
-  const print = 'print' in opts ? opts.print : true
-  delete opts.print
+  let print = true
+  if (opts && 'print' in opts) {
+    print = opts.print
+    delete opts.print
+  }
   return new Promise((resolve, reject) => {
     const cmd = spawn(command, args, opts)
     let stdout = ''
