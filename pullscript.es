@@ -82,7 +82,7 @@ async function main(args) {
     if (!s.isDirectory()) {
       throw new Error('Repository is not a directory')
     }
-    await spawnAsync('git', [ 'pull', 'origin', 'master' ], { cwd: repoPath })
+    await spawnAsync('git', [ 'pull' ], { cwd: repoPath })
   }
 
   const lockFile = path.join(repoPath, '.pullscript.lock')
