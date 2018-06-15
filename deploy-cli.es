@@ -337,9 +337,7 @@ async function main() {
       try {
         const results = await db.query(sql)
         console.log('SQL results:')
-        for (const result of results) {
-          console.log(result.message)
-        }
+        console.log(results)
       } catch (e) {
         console.log('SQL query error:', e)
       }
