@@ -66,6 +66,17 @@ export default class SLBClient extends CDNClient {
       RegionId: this.config.regionId,
       LoadBalancerId: lb_id,
       BackendServers: JSON.stringify(servers),
+    }).catch((e) => {
+      if (e.code === 'BackendServer.configuring') {
+        // retry
+        return this.request({
+          Action: 'SetBackendServers',
+          RegionId: this.config.regionId,
+          LoadBalancerId: lb_id,
+          BackendServers: JSON.stringify(servers),
+        })
+      }
+      throw e
     })
   }
   getVServerGroups(lb_id) {
