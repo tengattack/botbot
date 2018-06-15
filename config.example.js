@@ -58,6 +58,7 @@ const config = {
   github: {
     repo_path: './repos',
     access_token: 'xxx',
+    authors: [ 'john', 'tengattack' ],
     base_scripts: {
       'tengattack/botbot': {
         'cwd': '/path/to/botbot',

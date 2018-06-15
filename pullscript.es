@@ -35,7 +35,11 @@ if (!args.project || !args.output || !args.output_sql) {
   parser.exit(1, 'No enough arguments\n\n' + parser.formatUsage())
 }
 
-function getScripts(pull, comment, type) {
+function getScripts(pull, comment, type, authors) {
+  if (!authors.includes(comment.user.login)) {
+    // unauthorized authors
+    return []
+  }
   const body = comment.body.replace(/\r/g, '')
   const scripts = []
   let startIndex = 0
@@ -114,11 +118,11 @@ async function main(args) {
       console.log('scanning pull request #' + pullNum + '\'s comments')
       const comments = await github.getIssueComments(project, pullNum)
       for (const comment of comments) {
-        let s = getScripts(pullNum, comment, 'sh')
+        let s = getScripts(pullNum, comment, 'sh', githubConfig.authors)
         if (s && s.length > 0) {
           scripts.push(...s)
         }
-        s = getScripts(pullNum, comment, 'sql')
+        s = getScripts(pullNum, comment, 'sql', githubConfig.authors)
         if (s && s.length > 0) {
           sqls.push(...s)
         }

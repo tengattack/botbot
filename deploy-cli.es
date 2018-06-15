@@ -46,6 +46,13 @@ if (process.argv.length > 3) {
         printHelpExit()
       }
       args[opt] = value
+    } else if (process.argv[i].startsWith('-')) {
+      let opt = process.argv[i].substr(1)
+      if (!opt) {
+        console.error('unknown option `-`')
+        printHelpExit()
+      }
+      args[opt] = true
     } else if (!args.servers) {
       args.servers = process.argv[i].split(',')
     } else {
@@ -303,17 +310,23 @@ async function main() {
     const sql = await fs.readFile(args.sql, 'utf8')
     console.log('ready to import SQL:\n' + sql)
 
-    let answer = await new Promise((resolve) => {
-      const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
+    let answer
+    if (args.y) {
+      answer = await new Promise((resolve) => {
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        })
+        rl.question('confirm to import? (y/n): ', function (ret) {
+          rl.close()
+          resolve(ret)
+        })
       })
-      rl.question('confirm to import? (y/n): ', function (ret) {
-        rl.close()
-        resolve(ret)
-      })
-    })
-    answer = answer.trim()
+      answer = answer.trim()
+    } else {
+      console.log('confirm by cli command `-y`')
+      answer = 'y'
+    }
     if (answer !== 'y') {
       console.log('user canceled sql import.')
     } else {
