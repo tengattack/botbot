@@ -130,53 +130,49 @@ async function main(args) {
     }
   }
 
-  if (scripts.length > 0) {
-    const scheduleList = [ 'before-pull', 'pull', 'after-pull', 'before-sql', 'after-sql' ]
-    let allScript = '#!/bin/sh\n\n'
-    const baseScript = githubConfig.base_scripts && project in githubConfig.base_scripts
-      ? githubConfig.base_scripts[project] : ''
+  const scheduleList = [ 'before-pull', 'pull', 'after-pull', 'before-sql', 'after-sql' ]
+  let allScript = '#!/bin/sh\n\n'
+  const baseScript = githubConfig.base_scripts && project in githubConfig.base_scripts
+    ? githubConfig.base_scripts[project] : ''
 
-    allScript += 'if [ "$2" == "" ]; then\n'
-    if (typeof baseScript === 'string') {
-      allScript += '# base script\n' + baseScript + '\n\n'
-    }
-    if (typeof baseScript === 'object' && 'cwd' in baseScript) {
-      allScript += '# base script (cwd)\ncd ' + baseScript['cwd'] + '\n\n'
-    }
-    for (const schedule of scheduleList) {
-      if (schedule === 'after-sql') {
-        allScript += 'fi\n\nif [ "$2" == "after-sql" ]; then\n'
-        if (typeof baseScript === 'object' && 'cwd' in baseScript) {
-          allScript += '# base script (cwd)\ncd ' + baseScript['cwd'] + '\n\n'
-        }
+  allScript += 'if [ "$2" == "" ]; then\n'
+  if (typeof baseScript === 'string') {
+    allScript += '# base script\n' + baseScript + '\n\n'
+  }
+  if (typeof baseScript === 'object' && 'cwd' in baseScript) {
+    allScript += '# base script (cwd)\ncd ' + baseScript['cwd'] + '\n\n'
+  }
+  for (const schedule of scheduleList) {
+    if (schedule === 'after-sql') {
+      allScript += 'fi\n\nif [ "$2" == "after-sql" ]; then\n'
+      if (typeof baseScript === 'object' && 'cwd' in baseScript) {
+        allScript += '# base script (cwd)\ncd ' + baseScript['cwd'] + '\n\n'
       }
-      if (typeof baseScript === 'object') {
-        if (schedule in baseScript) {
-          allScript += '# base script (' + schedule + ')\n' + baseScript[schedule] + '\n\n'
-        }
+    }
+    if (typeof baseScript === 'object') {
+      if (schedule in baseScript) {
+        allScript += '# base script (' + schedule + ')\n' + baseScript[schedule] + '\n\n'
       }
-      scripts.filter((s) => s.schedule === schedule).forEach((s) => {
-        allScript += '# from pull request #' + s.pull + ' ' + s.author + ' (' + schedule + ')\n'
-          + s.script + '\n\n'
-      })
     }
-    allScript += 'fi\n'
-
-    await fs.writeFile(args.output, allScript)
-
-    let allSQL = ''
-    if (typeof baseScript === 'object' && 'sql' in baseScript) {
-      allSQL += '-- base script\n' + baseScript['sql'] + '\n\n'
-    }
-    sqls.filter((s) => s.schedule !== 'none').forEach((s) => {
-      allSQL += '-- from pull request #' + s.pull + ' ' + s.author + '\n'
+    scripts.filter((s) => s.schedule === schedule).forEach((s) => {
+      allScript += '# from pull request #' + s.pull + ' ' + s.author + ' (' + schedule + ')\n'
         + s.script + '\n\n'
     })
-    if (allSQL) {
-      await fs.writeFile(args.output_sql, allSQL)
-    }
-  } else {
-    console.log('No extra script need to run.')
+  }
+  allScript += 'fi\n'
+
+  await fs.writeFile(args.output, allScript)
+
+  let allSQL = ''
+  if (typeof baseScript === 'object' && 'sql' in baseScript) {
+    allSQL += '-- base script\n' + baseScript['sql'] + '\n\n'
+  }
+  sqls.filter((s) => s.schedule !== 'none').forEach((s) => {
+    allSQL += '-- from pull request #' + s.pull + ' ' + s.author + '\n'
+      + s.script + '\n\n'
+  })
+  if (allSQL) {
+    await fs.writeFile(args.output_sql, allSQL)
   }
 
   ret = await spawnAsync('git', [ 'log', '-1', '--pretty=format:%ct %H' ], { cwd: repoPath, print: false })
