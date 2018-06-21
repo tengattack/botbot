@@ -175,6 +175,19 @@ async function main(args) {
     await fs.writeFile(args.output_sql, allSQL)
   }
 
+  // generate end script
+  const endScripts = scripts.filter((s) => s.schedule === 'end')
+  if (endScripts.length > 0) {
+    allScript = '#!/bin/sh\n\n'
+    endScripts.forEach((s) => {
+      allScript += '# from pull request #' + s.pull + ' ' + s.author + ' (' + schedule + ')\n'
+        + s.script + '\n\n'
+    })
+    const p = path.parse(args.output)
+    const endScriptFile = path.join(p.dir, p.name + '-end' + p.ext)
+    await fs.writeFile(endScriptFile, allScript)
+  }
+
   ret = await spawnAsync('git', [ 'log', '-1', '--pretty=format:%ct %H' ], { cwd: repoPath, print: false })
 
   const s = ret.stdout.split(' ')
