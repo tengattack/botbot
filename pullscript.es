@@ -130,7 +130,7 @@ async function main(args) {
     }
   }
 
-  const scheduleList = [ 'before-pull', 'pull', 'after-pull', 'before-sql', 'after-sql' ]
+  const scheduleList = [ 'before-pull', 'pull', 'after-pull', 'before-sql', 'after-sql', 'end' ]
   let allScript = '#!/bin/sh\n\n'
   const baseScript = githubConfig.base_scripts && project in githubConfig.base_scripts
     ? githubConfig.base_scripts[project] : ''
@@ -143,9 +143,9 @@ async function main(args) {
     allScript += '# base script (cwd)\ncd ' + baseScript['cwd'] + '\n\n'
   }
   for (const schedule of scheduleList) {
-    if (schedule === 'after-sql') {
-      allScript += 'fi\n\nif [ "$2" == "after-sql" ]; then\n'
-      if (typeof baseScript === 'object' && 'cwd' in baseScript) {
+    if ([ 'after-sql', 'end' ].includes(schedule)) {
+      allScript += 'fi\n\nif [ "$2" == "' + schedule + '" ]; then\n'
+      if (typeof baseScript === 'object' && (schedule !== 'end' && 'cwd' in baseScript)) {
         allScript += '# base script (cwd)\ncd ' + baseScript['cwd'] + '\n\n'
       }
     }
@@ -173,19 +173,6 @@ async function main(args) {
   })
   if (allSQL) {
     await fs.writeFile(args.output_sql, allSQL)
-  }
-
-  // generate end script
-  const endScripts = scripts.filter((s) => s.schedule === 'end')
-  if (endScripts.length > 0) {
-    allScript = '#!/bin/sh\n\n'
-    endScripts.forEach((s) => {
-      allScript += '# from pull request #' + s.pull + ' ' + s.author + ' (' + schedule + ')\n'
-        + s.script + '\n\n'
-    })
-    const p = path.parse(args.output)
-    const endScriptFile = path.join(p.dir, p.name + '-end' + p.ext)
-    await fs.writeFile(endScriptFile, allScript)
   }
 
   ret = await spawnAsync('git', [ 'log', '-1', '--pretty=format:%ct %H' ], { cwd: repoPath, print: false })

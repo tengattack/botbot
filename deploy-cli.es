@@ -345,6 +345,11 @@ async function main() {
     }
   }
 
+  if (args.script_file) {
+    // end stage
+    await spawnAsync(args.script_file, [ 'end' ])
+  }
+
   console.log('done.')
 }
 
