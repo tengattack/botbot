@@ -347,7 +347,8 @@ async function main() {
 
   if (args.script_file) {
     // end stage
-    await spawnAsync(args.script_file, [ 'end' ])
+    await spawnAsync('chmod', [ '+x', args.script_file ])
+    await spawnAsync(args.script_file, [ 'master', 'end' ])
   }
 
   console.log('done.')
