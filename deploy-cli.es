@@ -300,6 +300,10 @@ async function runScriptOnServers(args, stage) {
         }
       }
     }
+    if (dirtyLbs.length > 0) {
+      // wait for slb take effect
+      await wait(3000)
+    }
   }
 }
 
