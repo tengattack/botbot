@@ -1,5 +1,7 @@
 
 import CDNClient from './cdn'
+import { base64, hmac_sha1 } from './common'
+
 import config from '../config'
 
 const SLB_API = 'https://slb.aliyuncs.com/'
@@ -10,6 +12,35 @@ export default class SLBClient extends CDNClient {
     this.config = { ...this.config, ...config['slb'] }
     this.api = SLB_API
     this.version = '2014-05-15'
+  }
+  signature(verb, params) {
+    const { accessKeyId, accessKeySecret } = this.config
+    const nonce = Math.random().toString().substr(2)
+    const d = new Date()
+    const ISODate = d.toISOString().split('.')[0] + 'Z'
+    params = {
+      Format: 'JSON',
+      Version: this.version,
+      AccessKeyId: accessKeyId,
+      SignatureMethod: 'HMAC-SHA1',
+      TimeStamp: ISODate,
+      SignatureVersion: '1.0',
+      SignatureNonce: nonce,
+      ...params,
+    }
+    const keysSorted = Object.keys(params).sort()
+    let data = ''
+    for (let k of keysSorted) {
+      if (params[k] === undefined) {
+        continue
+      }
+      data += (data ? '&' : '') + k + '=' + encodeURIComponent(params[k])
+    }
+    const stringToSign = verb + '&' + encodeURIComponent('/')
+                       + '&' + encodeURIComponent(data)
+
+    params.Signature = base64(hmac_sha1(accessKeySecret + '&', stringToSign, ''))
+    return params
   }
   getRegions() {
     return this.request({

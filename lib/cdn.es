@@ -11,7 +11,7 @@ export default class CDNClient {
   constructor(conf) {
     this.config = conf || config['oss']
     this.api = CDN_API
-    this.version = '2014-11-11'
+    this.version = '2018-05-10'
   }
   signature(verb, params) {
     const { accessKeyId, accessKeySecret } = this.config
@@ -23,7 +23,7 @@ export default class CDNClient {
       Version: this.version,
       AccessKeyId: accessKeyId,
       SignatureMethod: 'HMAC-SHA1',
-      TimeStamp: ISODate,
+      Timestamp: ISODate,
       SignatureVersion: '1.0',
       SignatureNonce: nonce,
       ...params,
@@ -31,6 +31,9 @@ export default class CDNClient {
     const keysSorted = Object.keys(params).sort()
     let data = ''
     for (let k of keysSorted) {
+      if (params[k] === undefined) {
+        continue
+      }
       data += (data ? '&' : '') + k + '=' + encodeURIComponent(params[k])
     }
     const stringToSign = verb + '&' + encodeURIComponent('/')
@@ -92,7 +95,14 @@ export default class CDNClient {
       ObjectType: type,
     })
   }
-  setCertificate(domain, name, pubkey, privkey) {
+  listDomains(pageNumber = 1, pageSize = 20) {
+    return this.request({
+      Action: 'DescribeUserDomains',
+      PageNumber: pageNumber,
+      PageSize: pageSize,
+    })
+  }
+  setCertificate(domain, name, pubkey, privkey, certType) {
     return this.request({
       Action: 'SetDomainServerCertificate',
       DomainName: domain,
@@ -100,6 +110,7 @@ export default class CDNClient {
       ServerCertificateStatus: 'on',
       ServerCertificate: pubkey,
       PrivateKey: privkey,
+      CertType: certType,
     })
   }
 }

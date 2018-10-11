@@ -63,8 +63,30 @@ async function main() {
   const pubk = fs.readFileSync(args.certificate_file)
   const privk = fs.readFileSync(args.private_key_file)
 
-  let r = await cdn.setCertificate(cdnHost, name, pubk, privk)
-  console.log('set cdn certificate done.')
+  let r
+  let page = 1
+  while (true) {
+    const res = await cdn.listDomains(page)
+    for (const domain of res.Domains.PageData) {
+      if (domain.SslProtocol === 'on') {
+        try {
+          r = await cdn.setCertificate(domain.DomainName, name, pubk, privk, 'cas')
+        } catch (e) {
+          if (e.code === 'Certificate.Duplicated') {
+            // as we have uploaded to Aliyun CAS, we can set it using CertName directly
+            r = await cdn.setCertificate(domain.DomainName, name, undefined, undefined, 'cas')
+          } else {
+            throw e
+          }
+        }
+        console.log('set cdn \'' + domain.DomainName + '\' certificate done.')
+      }
+    }
+    page++
+    if (page > Math.floor(res.TotalCount / res.PageSize)) {
+      break
+    }
+  }
 
   r = await slb.uploadCertificate(name, pubk, privk)
 
