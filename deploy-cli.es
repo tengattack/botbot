@@ -10,6 +10,9 @@ import SLBClient from './lib/slb'
 import ECSClient from './lib/ecs'
 import config from './config'
 
+// slb take effect require some time
+const SLB_MAX_TAKE_EFFECT_TIME = 12000
+
 function printHelpExit() {
   console.log('./deploy-cli.es [--weight=X] [--sql=X.sql] servers [script_file]')
   process.exit(1)
@@ -300,9 +303,10 @@ async function runScriptOnServers(args, stage) {
         }
       }
     }
-    if (dirtyLbs.length > 0) {
+    if (dirtyLbs.length > 0 && args.servers.length === 2) {
       // wait for slb take effect
-      await wait(3000)
+      // and only used for scenario of 2 servers
+      await wait(SLB_MAX_TAKE_EFFECT_TIME)
     }
   }
 }
