@@ -131,7 +131,7 @@ async function main(args) {
   }
 
   const scheduleList = [ 'before-pull', 'pull', 'after-pull', 'before-sql', 'after-sql', 'end' ]
-  let allScript = '#!/bin/sh\n\n'
+  let allScript = '#!/bin/sh\n\nset -e\n\n'
   const baseScript = githubConfig.base_scripts && project in githubConfig.base_scripts
     ? githubConfig.base_scripts[project] : ''
 
