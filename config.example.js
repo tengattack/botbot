@@ -7,6 +7,9 @@ const config = {
   sys: {
     public_dir,
   },
+  app: {
+    rpc_key: 'testkey',
+  },
   client: {
     api_path: 'http://localhost:3009/api',
     timeout: 3 * 60 * 1000,
