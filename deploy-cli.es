@@ -11,7 +11,7 @@ import ECSClient from './lib/ecs'
 import config from './config'
 
 // slb take effect require some time
-const SLB_MAX_TAKE_EFFECT_TIME = 12000
+const SLB_MAX_TAKE_EFFECT_TIME = 15000
 
 function printHelpExit() {
   console.log('./deploy-cli.es [--weight=X] [--sql=X.sql] servers [script_file]')
@@ -184,6 +184,7 @@ async function runScriptOnServers(args, stage) {
   if ('weight' in args) {
     newWeight = args.weight
   }
+  let i = 0
   for (const serverName of args.servers) {
     const dirtyLbs = []
     for (const lb of _lbs.LoadBalancers.LoadBalancer) {
@@ -303,11 +304,13 @@ async function runScriptOnServers(args, stage) {
         }
       }
     }
-    if (dirtyLbs.length > 0 && args.servers.length === 2) {
+    if (i === 0 && dirtyLbs.length > 0 && args.servers.length === 2) {
       // wait for slb take effect
       // and only used for scenario of 2 servers
+      console.log('waiting SLB take effect...')
       await wait(SLB_MAX_TAKE_EFFECT_TIME)
     }
+    i++
   }
 }
 
