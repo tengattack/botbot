@@ -351,8 +351,18 @@ async function main() {
         console.log(results)
       } catch (e) {
         console.log('SQL query error:', e)
+        throw e
       }
       await db.close()
+    }
+
+    if (args.script_file) {
+      // check after-sql script exists:
+      const scriptContent = await fs.readFileAsync(args.script_file, { encoding: 'utf8' })
+      if (/\(after-sql\)\n/.test(scriptContent)) {
+        // after-sql
+        await runScriptOnServers(args, 'after-sql')
+      }
     }
   }
 
@@ -367,6 +377,7 @@ async function main() {
 
 function onerror(err) {
   console.error('Error:', err)
+  process.exit(1)
 }
 
 main().catch(onerror)

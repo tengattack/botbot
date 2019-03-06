@@ -130,12 +130,12 @@ async function main(args) {
     }
   }
 
-  const scheduleList = [ 'before-pull', 'pull', 'after-pull', 'before-sql', 'after-sql', 'end' ]
-  let allScript = '#!/bin/sh\n\nset -e\n\n'
+  const scheduleList = [ 'before-pull', 'pull', 'after-pull', 'test', 'before-sql', 'after-sql', 'end' ]
+  let allScript = '#!/bin/sh\n\nset -euo pipefail\n\n'
   const baseScript = githubConfig.base_scripts && project in githubConfig.base_scripts
     ? githubConfig.base_scripts[project] : ''
 
-  allScript += 'if [ "$2" == "" ]; then\n:\n'
+  allScript += 'if [ "${2-}" == "" ]; then\n:\n'
   if (typeof baseScript === 'string') {
     allScript += '# base script\n' + baseScript + '\n\n'
   }
@@ -144,7 +144,7 @@ async function main(args) {
   }
   for (const schedule of scheduleList) {
     if ([ 'after-sql', 'end' ].includes(schedule)) {
-      allScript += 'fi\n\nif [ "$2" == "' + schedule + '" ]; then\n:\n'
+      allScript += 'fi\n\nif [ "${2-}" == "' + schedule + '" ]; then\n:\n'
       if (typeof baseScript === 'object' && (schedule !== 'end' && 'cwd' in baseScript)) {
         allScript += '# base script (cwd)\ncd ' + baseScript['cwd'] + '\n\n'
       }
