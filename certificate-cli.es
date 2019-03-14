@@ -3,6 +3,7 @@
 import path from 'path'
 import fs from 'fs'
 import CDNClient from './lib/cdn'
+import LiveCDNClient from './lib/livecdn'
 import SLBClient from './lib/slb'
 import config from './config'
 
@@ -21,6 +22,7 @@ if (process.argv.length > 3) {
 
 const cdnHost = config['build'].cdn_host
 const cdn = new CDNClient()
+const livecdn = new LiveCDNClient()
 const slb = new SLBClient()
 
 function ii(s, len = 2, pad = '0') {
@@ -65,6 +67,27 @@ async function main() {
 
   let r
   let page = 1
+  while (true) {
+    const res = await livecdn.listDomains(page)
+    for (const domain of res.Domains.PageData) {
+      try {
+        r = await livecdn.setCertificate(domain.DomainName, name, pubk, privk)
+      } catch (e) {
+        if (e.code === 'Certificate.Duplicated') {
+          r = await livecdn.setCertificate(domain.DomainName, name, undefined, undefined)
+        } else {
+          throw e
+        }
+      }
+      console.log('set cdn \'' + domain.DomainName + '\' certificate done.')
+    }
+    page++
+    if (page > Math.floor(res.TotalCount / res.PageSize)) {
+      break
+    }
+  }
+
+  page = 1
   while (true) {
     const res = await cdn.listDomains(page)
     for (const domain of res.Domains.PageData) {
