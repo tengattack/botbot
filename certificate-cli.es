@@ -8,7 +8,7 @@ import SLBClient from './lib/slb'
 import config from './config'
 
 function printHelpExit() {
-  console.log('./certificate-cli.es [certificate_file] [private_key_file]')
+  console.log('./certificate-cli.es [certificate_file] [private_key_file] [domain_name]')
   process.exit(1)
 }
 
@@ -16,6 +16,7 @@ const args = {}
 if (process.argv.length > 3) {
   args.certificate_file = process.argv[2]
   args.private_key_file = process.argv[3]
+  args.domain_name = process.argv[4]
 } else {
   printHelpExit()
 }
@@ -70,6 +71,9 @@ async function main() {
   while (true) {
     const res = await livecdn.listDomains(page)
     for (const domain of res.Domains.PageData) {
+      if (args.domain_name && args.domain_name !== domain.DomainName) {
+        continue
+      }
       try {
         r = await livecdn.setCertificate(domain.DomainName, name, pubk, privk)
       } catch (e) {
@@ -92,6 +96,9 @@ async function main() {
     const res = await cdn.listDomains(page)
     for (const domain of res.Domains.PageData) {
       if (domain.SslProtocol === 'on') {
+        if (args.domain_name && args.domain_name !== domain.DomainName) {
+          continue
+        }
         try {
           r = await cdn.setCertificate(domain.DomainName, name, pubk, privk, 'cas')
         } catch (e) {
@@ -119,6 +126,19 @@ async function main() {
     for (const lb of r.LoadBalancers.LoadBalancer) {
       const _lb = await slb.getLoadBalancer(lb.LoadBalancerId)
       const pps = _lb.ListenerPortsAndProtocal.ListenerPortAndProtocal.filter(hasHttps)
+      let skip = args.domain_name ? true : false
+      for (const t of lb.Tags.Tag) {
+        if (t.TagKey === 'domain' && args.domain_name && args.domain_name === t.TagValue) {
+          skip = false  // ignore skip tag, must be matched exactly
+          break
+        }
+        if (t.TagKey === 'certificate-cli' && t.TagValue === 'skip') {
+          skip = true
+        }
+      }
+      if (skip) {
+        continue
+      }
       for (const pp of pps) {
         r = await slb.getLoadBalancerAttribute(lb.LoadBalancerId, pp.ListenerProtocal, pp.ListenerPort)
         let opts = getPropertites(r, [
