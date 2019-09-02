@@ -71,6 +71,9 @@ async function main() {
   while (true) {
     const res = await livecdn.listDomains(page)
     for (const domain of res.Domains.PageData) {
+      if (domain.LiveDomainType !== 'liveVideo') {
+        continue
+      }
       if (args.domain_name && args.domain_name !== domain.DomainName) {
         continue
       }
@@ -80,10 +83,11 @@ async function main() {
         if (e.code === 'Certificate.Duplicated') {
           r = await livecdn.setCertificate(domain.DomainName, name, undefined, undefined)
         } else {
+          console.error('live cdn \'' + domain.DomainName + '\' set certificate failed.')
           throw e
         }
       }
-      console.log('set cdn \'' + domain.DomainName + '\' certificate done.')
+      console.log('set live cdn \'' + domain.DomainName + '\' certificate done.')
     }
     page++
     if (page > Math.floor(res.TotalCount / res.PageSize)) {
@@ -106,6 +110,7 @@ async function main() {
             // as we have uploaded to Aliyun CAS, we can set it using CertName directly
             r = await cdn.setCertificate(domain.DomainName, name, undefined, undefined, 'cas')
           } else {
+            console.error('cdn \'' + domain.DomainName + '\' set certificate failed.')
             throw e
           }
         }
