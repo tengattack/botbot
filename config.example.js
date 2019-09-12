@@ -58,6 +58,13 @@ const config = {
   ecs: {
     regionId: 'cn-hangzhou',
   },
+  ksyun_cdn: {
+    accessKeyId: '[keyId]',
+    accessKeySecret: '[keySecret]',
+
+    domainName: '*.cdn.ksyun.com',
+    domainIds: ['2D08ABC'],
+  },
   github: {
     repo_path: './repos',
     access_token: 'xxx',

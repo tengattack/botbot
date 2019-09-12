@@ -3,6 +3,7 @@ import fs from 'fs'
 import request from 'request'
 
 import { base64, hmac_sha1 } from './common'
+import { USER_AGENT, TIMEOUT } from './const'
 import config from '../config'
 
 const CDN_API = 'https://cdn.aliyuncs.com/'
@@ -71,10 +72,12 @@ export default class CDNClient {
         uri: this.api,
         headers: {
           'Content-Type': 'application/json',
+          'User-Agent': USER_AGENT,
         },
         json: true,
         gzip: true,
         form,
+        timeout: TIMEOUT,
       }, self.resp_promise_cb(resolve, reject))
     })
   }

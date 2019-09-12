@@ -5,6 +5,7 @@ import fs from 'fs'
 import CDNClient from './lib/cdn'
 import LiveCDNClient from './lib/livecdn'
 import SLBClient from './lib/slb'
+import KsyunCDN from './lib/ksyun-cdn'
 import config from './config'
 
 function printHelpExit() {
@@ -25,6 +26,7 @@ const cdnHost = config['build'].cdn_host
 const cdn = new CDNClient()
 const livecdn = new LiveCDNClient()
 const slb = new SLBClient()
+const ksyunCdn = new KsyunCDN()
 
 function ii(s, len = 2, pad = '0') {
   s = s.toString()
@@ -65,6 +67,23 @@ async function main() {
 
   const pubk = fs.readFileSync(args.certificate_file)
   const privk = fs.readFileSync(args.private_key_file)
+
+  // update ksyun cdn
+  if (args.domain_name && args.domain_name === config['ksyun_cdn'].domainName) {
+    let certId = null
+    for (const domainId of config['ksyun_cdn'].domainIds) {
+      let r
+      if (certId) {
+        r = await ksyunCdn.setCertificate(domainId, undefined, undefined, undefined, certId)
+      } else {
+        r = await ksyunCdn.setCertificate(domainId, name, pubk, privk)
+      }
+      if (r && r.CertificateId) {
+        certId = r.CertificateId
+      }
+      console.log('set ksyun cdn \'' + domainId + '\' certificate done.')
+    }
+  }
 
   let r
   let page = 1

@@ -30,8 +30,16 @@ function sha1(str) {
   sha1.update(str)
   return sha1.digest('hex')
 }
+function sha256(str) {
+  const sha256 = crypto.createHash('sha256')
+  sha256.update(str)
+  return sha256.digest('hex')
+}
 function hmac_sha1(secret_key, str, digest = 'hex') {
   return crypto.createHmac('sha1', secret_key).update(str).digest(digest)
+}
+function hmac_sha256(secret_key, str, digest = 'hex') {
+  return crypto.createHmac('sha256', secret_key).update(str).digest(digest)
 }
 function make_auth(message) {
   const smsg = base64(JSON.stringify(message))
@@ -103,6 +111,24 @@ function file_ext(file) {
     return file.substr(dotIndex).toLowerCase()
   }
   return ''
+}
+
+function ii(s, len = 2, pad = '0') {
+  s = s.toString()
+  while (s.length < len) {
+    s = pad + s
+  }
+  return s
+}
+
+/**
+ * Format date to string
+ *
+ * @param {Date} d
+ * @return {String} eg. 20190804
+ */
+function formatDate(d) {
+  return `${d.getFullYear()}${ii(d.getMonth() + 1)}${ii(d.getDate())}`
 }
 
 function formatTime(ms, showHours = false) {
@@ -178,11 +204,14 @@ export {
   md5Async,
   base64,
   sha1,
+  sha256,
   hmac_sha1,
+  hmac_sha256,
   make_auth,
   string_clean,
   mime,
   file_ext,
+  formatDate,
   formatTime,
   parseTime,
   spawnAsync,
