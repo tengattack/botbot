@@ -23,7 +23,7 @@ function md5Async(stream, encoding = 'hex') {
   })
 }
 function base64(str) {
-  return new Buffer(str).toString('base64')
+  return Buffer.from(str).toString('base64')
 }
 function sha1(str) {
   const sha1 = crypto.createHash('sha1')
