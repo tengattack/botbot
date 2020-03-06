@@ -24,6 +24,9 @@ export default class GithubClient {
         json: true,
         gzip: true,
       }
+      if (this.opts.proxy) {
+        _opts.proxy = this.opts.proxy
+      }
       request(_opts, function (err, resp, body) {
         if (err) {
           return reject(err)

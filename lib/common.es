@@ -41,17 +41,39 @@ function hmac_sha1(secret_key, str, digest = 'hex') {
 function hmac_sha256(secret_key, str, digest = 'hex') {
   return crypto.createHmac('sha256', secret_key).update(str).digest(digest)
 }
-function make_auth(message) {
+function make_auth(message, key) {
   const smsg = base64(JSON.stringify(message))
   const timestamp = Math.round(new Date().valueOf() / 1000).toString()
   const text = smsg + ' ' + timestamp
-  const sign = hmac_sha1(config['sso'].secret_key, text)
+  const sign = hmac_sha1(key, text)
+
+  return `${smsg} ${sign} ${timestamp}`
+}
+function make_auth2(message, key) {
+  const smsg = base64(JSON.stringify(message))
+  const timestamp = Math.round(new Date().valueOf() / 1000).toString()
+  const text = smsg + ' ' + timestamp
+  const sign = hmac_sha256(key, text)
 
   return `${smsg} ${sign} ${timestamp}`
 }
 
 function string_clean(str) {
   return str.trim().toLowerCase()
+}
+
+function escapeHTML(str) {
+  return str.replace(/[&<>'"]/g,
+    function (tag) {
+      return {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;'
+        }[tag] || tag
+    }
+  )
 }
 
 function mime(ext) {
@@ -208,6 +230,8 @@ export {
   hmac_sha1,
   hmac_sha256,
   make_auth,
+  make_auth2,
+  escapeHTML,
   string_clean,
   mime,
   file_ext,

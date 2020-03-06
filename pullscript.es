@@ -3,8 +3,9 @@
 import fs from 'fs-extra'
 import path from 'path'
 import { ArgumentParser } from 'argparse'
-import { spawnAsync } from './lib/common'
+import { escapeHTML, spawnAsync } from './lib/common'
 import GithubClient from './lib/github'
+import PushService from './lib/pushservice'
 import config from './config'
 import { start } from 'repl';
 
@@ -67,7 +68,12 @@ function getScripts(pull, comment, type, authors) {
 
 async function main(args) {
   const githubConfig = config['github']
-  const github = new GithubClient({ access_token: githubConfig.access_token })
+  const notifyConfig = config['notify']
+  const github = new GithubClient({
+    access_token: githubConfig.access_token,
+    proxy: githubConfig.proxy,
+  })
+  const push = new PushService()
   const project = args.project
   const repoPath = path.join(githubConfig['repo_path'], project)
 
@@ -180,6 +186,14 @@ async function main(args) {
   const s = ret.stdout.split(' ')
   lastInfo.last_time = parseInt(s[0])
   lastInfo.last_sha = s[1]
+
+  ret = await spawnAsync('make', [ 'version' ], { cwd: repoPath, print: false })
+
+  const body = lines.map(escapeHTML).join('<br>')
+  const subject = notifyConfig['subject']
+    .replace('{project}', project)
+    .replace('{version}', ret.stdout.trim())
+  await push.sendEmail(notifyConfig['email'], subject, body)
 
   fs.writeFile(lockFile, JSON.stringify(lastInfo))
 }

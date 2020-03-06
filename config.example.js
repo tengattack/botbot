@@ -76,6 +76,14 @@ const config = {
       },
     },
   },
+  pushservice: {
+    url: 'http://mpush:8098',
+    key: 'testkey',
+  },
+  notify: {
+    email: 'totest@example.com',
+    subject: '[Bulid] {project} New Version {version}'
+  },
 }
 
 export default config
