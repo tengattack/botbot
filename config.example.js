@@ -62,8 +62,12 @@ const config = {
     accessKeyId: '[keyId]',
     accessKeySecret: '[keySecret]',
 
-    domainName: '*.cdn.ksyun.com',
-    domainIds: ['2D08ABC'],
+    domainList: [
+      {
+        domainName: '*.cdn.ksyun.com',
+        domainIds: ['2D08ABC'],
+      },
+    ],
   },
   github: {
     repo_path: './repos',

@@ -69,19 +69,23 @@ async function main() {
   const privk = fs.readFileSync(args.private_key_file)
 
   // update ksyun cdn
-  if (args.domain_name && args.domain_name === config['ksyun_cdn'].domainName) {
-    let certId = null
-    for (const domainId of config['ksyun_cdn'].domainIds) {
-      let r
-      if (certId) {
-        r = await ksyunCdn.setCertificate(domainId, undefined, undefined, undefined, certId)
-      } else {
-        r = await ksyunCdn.setCertificate(domainId, name, pubk, privk)
+  if (args.domain_name && config['ksyun_cdn'].domainList) {
+    for (const domain of config['ksyun_cdn'].domainList) {
+      if (args.domain_name === domain.domainName) {
+        let certId = null
+        for (const domainId of domain.domainIds) {
+          let r
+          if (certId) {
+            r = await ksyunCdn.setCertificate(domainId, undefined, undefined, undefined, certId)
+          } else {
+            r = await ksyunCdn.setCertificate(domainId, name, pubk, privk)
+          }
+          if (r && r.CertificateId) {
+            certId = r.CertificateId
+          }
+          console.log('set ksyun cdn \'' + domainId + '\' certificate done.')
+        }
       }
-      if (r && r.CertificateId) {
-        certId = r.CertificateId
-      }
-      console.log('set ksyun cdn \'' + domainId + '\' certificate done.')
     }
   }
 
