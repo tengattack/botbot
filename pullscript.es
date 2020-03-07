@@ -66,6 +66,14 @@ function getScripts(pull, comment, type, authors) {
   return scripts
 }
 
+function decorateCommitLine(message, project) {
+  const prRegex = /#(\d+)/
+  return escapeHTML(message)
+    .replace(prRegex, function (s) {
+      return '<a href="https://github.com/' + project + '/pull/' + s.substr(1) + '" target="_blank">' + s + '</a>'
+    })
+}
+
 async function main(args) {
   const githubConfig = config['github']
   const notifyConfig = config['notify']
@@ -189,7 +197,9 @@ async function main(args) {
 
   ret = await spawnAsync('make', [ 'version' ], { cwd: repoPath, print: false })
 
-  const body = lines.map(escapeHTML).join('<br>')
+  const body = '<br>' + lines.map(function (line) {
+    return decorateCommitLine(line, project)
+  }).join('<br>')
   const subject = notifyConfig['subject']
     .replace('{project}', project)
     .replace('{version}', ret.stdout.trim())
