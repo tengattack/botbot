@@ -85,7 +85,8 @@ const config = {
     key: 'testkey',
   },
   notify: {
-    email: 'totest@example.com',
+    // from_address: 'crop@example.com',
+    email: 'john@mail.example.com',
     subject: '[Bulid] {project} New Version {version}'
   },
 }

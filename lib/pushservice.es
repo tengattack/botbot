@@ -40,13 +40,16 @@ export default class PushService {
       })
     })
   }
-  sendEmail(email, subject, body, template = '', payload = {}) {
+  sendEmail(email, subject, body, template = '', payload = {}, from = '') {
     const emailObj = {
       to: email,
       subject,
       body,
       template,
       payload,
+    }
+    if (from) {
+      emailObj.from = from
     }
     return this.requestPushApi('/api/email', {
       emails: [ emailObj ],
