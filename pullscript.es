@@ -29,10 +29,13 @@ parser.addArgument([ '--output' ], {
 parser.addArgument([ '--output-sql' ], {
   help: 'Set output sql path',
 })
+parser.addArgument([ '--pull_request' ], {
+  help: 'Check PR info',
+})
 
 const args = parser.parseArgs()
 
-if (!args.project || !args.output || !args.output_sql) {
+if (!(args.project && (args.pull_request || (args.output && args.output_sql)))) {
   parser.exit(1, 'No enough arguments\n\n' + parser.formatUsage())
 }
 
@@ -84,6 +87,12 @@ async function main(args) {
   const push = new PushService()
   const project = args.project
   const repoPath = path.join(githubConfig['repo_path'], project)
+
+  if (args.pull_request) {
+    const pr = await github.getPullRequest(project, parseInt(args.pull_request))
+    console.log(JSON.stringify(pr))
+    return
+  }
 
   if (!(await fs.exists(repoPath))) {
     const cwd = path.dirname(repoPath)
@@ -203,7 +212,7 @@ async function main(args) {
   const subject = notifyConfig['subject']
     .replace('{project}', project)
     .replace('{version}', ret.stdout.trim())
-  await push.sendEmail(notifyConfig['email'], subject, body)
+  await push.sendEmail(notifyConfig['email'], subject, body, '', {}, notifyConfig['from_address'])
 
   fs.writeFile(lockFile, JSON.stringify(lastInfo))
 }

@@ -38,4 +38,7 @@ export default class GithubClient {
   getIssueComments(repo, num, page = 1) {
     return this.request('GET', '/repos/' + repo + '/issues/' + num + '/comments', { page })
   }
+  getPullRequest(repo, num) {
+    return this.request('GET', '/repos/' + repo + '/pulls/' + num)
+  }
 }
