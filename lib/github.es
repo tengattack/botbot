@@ -14,7 +14,6 @@ export default class GithubClient {
       const _opts = {
         method,
         uri: GITHUB_API + uri,
-        [method === 'GET' ? 'qs' : 'form']: params,
         ...opts,
         headers: {
           ...(opts && opts.headers),
@@ -23,6 +22,11 @@ export default class GithubClient {
         },
         json: true,
         gzip: true,
+      }
+      if (method === 'GET') {
+        _opts.qs = params
+      } else if (method === 'POST') {
+        _opts.body = params
       }
       if (this.opts.proxy) {
         _opts.proxy = this.opts.proxy
@@ -34,6 +38,9 @@ export default class GithubClient {
         resolve(body)
       })
     })
+  }
+  createIssueComment(repo, num, body) {
+    return this.request('POST', '/repos/' + repo + '/issues/' + num + '/comments', { body })
   }
   getIssueComments(repo, num, page = 1) {
     return this.request('GET', '/repos/' + repo + '/issues/' + num + '/comments', { page })

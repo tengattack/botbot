@@ -32,6 +32,9 @@ parser.addArgument([ '--output-sql' ], {
 parser.addArgument([ '--pull_request' ], {
   help: 'Check PR info',
 })
+parser.addArgument([ '--add_comment' ], {
+  help: 'Add comment for pull request',
+})
 
 const args = parser.parseArgs()
 
@@ -89,8 +92,13 @@ async function main(args) {
   const repoPath = path.join(githubConfig['repo_path'], project)
 
   if (args.pull_request) {
-    const pr = await github.getPullRequest(project, parseInt(args.pull_request))
-    console.log(JSON.stringify(pr))
+    if (args.add_comment) {
+      const r = await github.createIssueComment(project, parseInt(args.pull_request), args.add_comment)
+      console.log(JSON.stringify(r))
+    } else {
+      const pr = await github.getPullRequest(project, parseInt(args.pull_request))
+      console.log(JSON.stringify(pr))
+    }
     return
   }
 
@@ -149,6 +157,18 @@ async function main(args) {
         if (s && s.length > 0) {
           sqls.push(...s)
         }
+      }
+    }
+  }
+  if (args.add_comment) {
+    const m = lines[0].match(prRegex)
+    if (m) {
+      const pullNum = m[1]
+      try {
+        await github.createIssueComment(project, parseInt(pullNum), args.add_comment)
+      } catch (e) {
+        console.log('github create comment error:', e)
+        // PASS
       }
     }
   }
