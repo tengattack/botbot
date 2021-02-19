@@ -224,7 +224,11 @@ async function main(args) {
   lastInfo.last_time = parseInt(s[0])
   lastInfo.last_sha = s[1]
 
-  ret = await spawnAsync('make', [ 'version' ], { cwd: repoPath, print: false })
+  try {
+    ret = await spawnAsync('make', [ 'version' ], { cwd: repoPath, print: false })
+  } catch (err) {
+    ret = { stdout: '' }
+  }
 
   const body = '<br>' + lines.map(function (line) {
     return decorateCommitLine(line, project)
