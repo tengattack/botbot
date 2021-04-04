@@ -1,4 +1,3 @@
-
 import request from 'request'
 
 const GITHUB_API = 'https://api.github.com'
@@ -25,7 +24,7 @@ export default class GithubClient {
       }
       if (method === 'GET') {
         _opts.qs = params
-      } else if (method === 'POST') {
+      } else if (method === 'POST' || method === 'PATCH') {
         _opts.body = params
       }
       if (this.opts.proxy) {
@@ -33,7 +32,10 @@ export default class GithubClient {
       }
       request(_opts, function (err, resp, body) {
         if (err) {
-          return reject(err)
+          return reject(JSON.stringify(err))
+        }
+        if (resp.statusCode > 299) {
+          return reject(JSON.stringify(body))
         }
         resolve(body)
       })
@@ -45,7 +47,22 @@ export default class GithubClient {
   getIssueComments(repo, num, page = 1) {
     return this.request('GET', '/repos/' + repo + '/issues/' + num + '/comments', { page })
   }
+  getAuthenticatedUser() {
+    return this.request('GET', '/user')
+  }
   getPullRequest(repo, num) {
     return this.request('GET', '/repos/' + repo + '/pulls/' + num)
+  }
+  listPullRequests(owner, repo, params) {
+    return this.request('GET', `/repos/${owner}/${repo}/pulls`, params)
+  }
+  createPullRequest(owner, repo, body) {
+    return this.request('POST', `/repos/${owner}/${repo}/pulls`, body)
+  }
+  updatePullRequest(owner, repo, id, body) {
+    return this.request('PATCH', `/repos/${owner}/${repo}/pulls/${id}`, body)
+  }
+  requestReviewers(owner, repo, id, body) {
+    return this.request('POST', `/repos/${owner}/${repo}/pulls/${id}/requested_reviewers`, body)
   }
 }
