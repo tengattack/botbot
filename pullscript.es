@@ -4,7 +4,7 @@ import fs from 'fs-extra'
 import path from 'path'
 import { ArgumentParser } from 'argparse'
 import { escapeHTML, spawnAsync } from './lib/common'
-import GithubClient from './lib/github.es'
+import GithubClient from './lib/github'
 import PushService from './lib/pushservice'
 import config from './config'
 import { start } from 'repl';

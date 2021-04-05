@@ -63,7 +63,7 @@ const afterPRUpdated = async (data, newVersion) => {
     )
     .filter((v) => v !== user.login)
   if (diffReviewers.length) {
-    console.log('\n同步 reviewer 中。。。')
+    console.log('\n同步 reviewer 中……')
     try {
       await github.requestReviewers(UPSTREAM_OWNER, REPO_NAME, data.number, {
         reviewers: diffReviewers,
@@ -74,7 +74,7 @@ const afterPRUpdated = async (data, newVersion) => {
       console.log('reviewer 同步失败')
     }
   }
-  console.log('更新 PR 信息中。。。')
+  console.log('更新 PR 信息中……')
   const baseBodyDataMap = {}
   Object.keys(groupedCommits).forEach((name) => {
     groupedCommits[name].forEach((title, i) => {
@@ -132,7 +132,7 @@ export const createPR = async (newVersion) => {
     cwd: repoPath,
   })
   await spawnAsync('git', ['push', '-u', 'origin', branchName], { cwd: repoPath })
-  console.log('创建 PR 中。。。')
+  console.log('创建 PR 中……')
   const pull = await github.createPullRequest(UPSTREAM_OWNER, REPO_NAME, {
     title: 'frontend: 将 master 最新提交合并至 stable 分支',
     head: `${user.login}:${branchName}`,
@@ -148,7 +148,7 @@ export const updatePR = async (branchName, newVersion) => {
   await spawnAsync('git', ['fetch', 'upstream'], { cwd: repoPath })
   await spawnAsync('git', ['merge', 'upstream/master'], { cwd: repoPath })
   await spawnAsync('git', ['push'], { cwd: repoPath })
-  console.log('查询 PR 中。。。')
+  console.log('查询 PR 中……')
   const pulls = await github.listPullRequests(UPSTREAM_OWNER, REPO_NAME, {
     head: `${user.login}:${branchName}`,
   })
