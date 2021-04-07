@@ -53,16 +53,16 @@ export default class GithubClient {
   getPullRequest(repo, num) {
     return this.request('GET', '/repos/' + repo + '/pulls/' + num)
   }
-  listPullRequests(owner, repo, params) {
-    return this.request('GET', `/repos/${owner}/${repo}/pulls`, params)
+  createPullRequest(repo, body) {
+    return this.request('POST', `/repos/${repo}/pulls`, body)
   }
-  createPullRequest(owner, repo, body) {
-    return this.request('POST', `/repos/${owner}/${repo}/pulls`, body)
+  updatePullRequest(repo, id, body) {
+    return this.request('PATCH', `/repos/${repo}/pulls/${id}`, body)
   }
-  updatePullRequest(owner, repo, id, body) {
-    return this.request('PATCH', `/repos/${owner}/${repo}/pulls/${id}`, body)
+  requestReviewers(repo, id, body) {
+    return this.request('POST', `/repos/${repo}/pulls/${id}/requested_reviewers`, body)
   }
-  requestReviewers(owner, repo, id, body) {
-    return this.request('POST', `/repos/${owner}/${repo}/pulls/${id}/requested_reviewers`, body)
+  listPullRequest(repo, id, page) {
+    return this.request('GET', `/repos/${repo}/pulls/${id}/commits`, { page, per_page: 100 })
   }
 }

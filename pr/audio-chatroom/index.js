@@ -1,4 +1,3 @@
-'use strict'
+import { createPR, updatePR } from './action'
 
-require('babel-core/register')
-require('./action')
+export const FMAction = { createPR, updatePR }

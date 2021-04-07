@@ -1,48 +1,36 @@
-import path from 'path'
 import fs from 'fs'
-import day from 'dayjs'
 import { spawnAsync } from '../../lib/common'
-import Client from '../../lib/github'
-import config from '../../config'
 import { parseTemplate } from './template'
+import { initClient, getRepoPath, getRepoName, beforeCreatePR, beforeUpdatePR } from '../utils'
 
-const UPSTREAM_OWNER = 'MiaoSiLa'
-const REPO_NAME = 'audio-chatroom'
-// const UPSTREAM_OWNER = 'Aokoooooo'
-// const REPO_NAME = 'aoko-cli-test'
-const GIT_LOG_SPLIT_TAG = ' || '
-
-let github
-let user
-const repoPath = path.join(config.github['repo_path'], REPO_NAME)
-
-const init = async () => {
-  if (github && user) {
-    return { github, user }
+const getPRCommits = async (project, id, total) => {
+  const { github, user } = await initClient()
+  console.log('查询提交中……')
+  const result = []
+  let page = 1
+  while (total > 0) {
+    const r = await github.listPullRequest(project, id, page++)
+    total -= 100
+    result.push(...r)
   }
-  github = new Client({
-    access_token: config.github.access_token,
-    proxy: config.github.proxy,
-  })
-  user = await github.getAuthenticatedUser()
-  return { github, user }
+  return result
+    .filter(
+      (v) =>
+        v.author &&
+        v.author.login &&
+        v.author.login !== user.login &&
+        v.commit.message.startsWith('frontend')
+    )
+    .map((v) => ({ login: v.author.login, msg: v.commit.message }))
 }
 
-const afterPRUpdated = async (data, newVersion) => {
-  await init()
-  const commits = (
-    await spawnAsync(
-      'git',
-      ['log', 'upstream/stable...HEAD', `--pretty=format:%an${GIT_LOG_SPLIT_TAG}%s`],
-      { cwd: repoPath }
-    )
-  ).stdout.split('\n')
+const afterPRUpdated = async (project, data, newVersion) => {
+  const { github, user } = await initClient()
+  const repoPath = getRepoPath(project)
+  const commits = await getPRCommits(project, data.number, data.commits)
   const groupedCommits = {}
   commits.forEach((v) => {
-    const [login, msg] = v.split(GIT_LOG_SPLIT_TAG)
-    if (login === user.login || !msg.startsWith('frontend')) {
-      return
-    }
+    const { login, msg } = v
     if (!groupedCommits[login]) {
       groupedCommits[login] = []
     }
@@ -63,9 +51,9 @@ const afterPRUpdated = async (data, newVersion) => {
     )
     .filter((v) => v !== user.login)
   if (diffReviewers.length) {
-    console.log('\n同步 reviewer 中……')
+    console.log('同步 reviewer 中……')
     try {
-      await github.requestReviewers(UPSTREAM_OWNER, REPO_NAME, data.number, {
+      await github.requestReviewers(project, data.number, {
         reviewers: diffReviewers,
       })
       console.log('reviewer 同步成功')
@@ -109,6 +97,7 @@ const afterPRUpdated = async (data, newVersion) => {
       }
     } else {
       console.log(`version 格式有误，需满足 /^(\d+\.)*\d$/（${newVersion}）`)
+      console.log('version 更新失败')
     }
   }
   const titleMatch = /^(.*)([\(（].*[\)）])$/.exec(data.title)
@@ -117,43 +106,33 @@ const afterPRUpdated = async (data, newVersion) => {
     titleMatch && titleMatch[1] && versionChanged
       ? `${titleMatch[1]}${titleSuffix}`
       : `${data.title}${titleSuffix}`
-  await github.updatePullRequest(UPSTREAM_OWNER, REPO_NAME, data.number, {
+  await github.updatePullRequest(project, data.number, {
     body: await parseTemplate(baseBodyDataMap, data.body),
     title: newTitle,
   })
   console.log(`PR#${data.number} 同步成功`)
 }
 
-export const createPR = async (newVersion) => {
-  await init()
-  const branchName = `PR-${day().format('YYYY-MM-DD')}`
-  await spawnAsync('git', ['fetch', 'upstream'], { cwd: repoPath })
-  await spawnAsync('git', ['checkout', '-f', '-b', branchName, 'upstream/master'], {
-    cwd: repoPath,
-  })
-  await spawnAsync('git', ['push', '-u', 'origin', branchName], { cwd: repoPath })
+export const createPR = async (args) => {
+  const { github, user } = await initClient()
+  const { project, version } = args
+  const repoName = getRepoName(project)
+  const branchName = await beforeCreatePR(repoName)
   console.log('创建 PR 中……')
-  const pull = await github.createPullRequest(UPSTREAM_OWNER, REPO_NAME, {
+  const pull = await github.createPullRequest(project, {
     title: 'frontend: 将 master 最新提交合并至 stable 分支',
     head: `${user.login}:${branchName}`,
     base: 'stable',
   })
   console.log(`PR#${pull.number} 创建成功`)
-  await afterPRUpdated(pull, newVersion)
+  await afterPRUpdated(project, pull, version)
 }
 
-export const updatePR = async (branchName, newVersion) => {
-  await init()
-  await spawnAsync('git', ['checkout', '-f', branchName], { cwd: repoPath })
-  await spawnAsync('git', ['fetch', 'upstream'], { cwd: repoPath })
-  await spawnAsync('git', ['merge', 'upstream/master'], { cwd: repoPath })
-  await spawnAsync('git', ['push'], { cwd: repoPath })
+export const updatePR = async (args) => {
+  const { github } = await initClient()
+  const { project, version, id } = args
+  await beforeUpdatePR(project, id)
   console.log('查询 PR 中……')
-  const pulls = await github.listPullRequests(UPSTREAM_OWNER, REPO_NAME, {
-    head: `${user.login}:${branchName}`,
-  })
-  if (!pulls || !pulls.length) {
-    throw new Error(`未找到 ${user.login} 为仓库 ${REPO_NAME} 创建的 PR (分支：${branchName})`)
-  }
-  await afterPRUpdated(pulls[0], newVersion)
+  const pull = await github.getPullRequest(project, id)
+  await afterPRUpdated(project, pull, version)
 }
