@@ -87,7 +87,7 @@ const afterPRUpdated = async (project, data, newVersion) => {
       const oldVersion = pkg.version
       if (oldVersion !== newVersion) {
         pkg.version = newVersion
-        fs.writeFileSync(pkgPath, JSON.stringify(pkg, undefined, 2))
+        fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, undefined, 2)}\n`)
         await spawnAsync('git', ['add', '.'], { cwd: repoPath })
         await spawnAsync('git', ['commit', '-m', `version: ${oldVersion} => ${newVersion}`], {
           cwd: repoPath,
