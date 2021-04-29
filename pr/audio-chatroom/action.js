@@ -111,6 +111,7 @@ const afterPRUpdated = async (project, data, newVersion) => {
     title: newTitle,
   })
   console.log(`PR#${data.number} 同步成功`)
+  console.log(data.html_url)
 }
 
 export const createPR = async (args) => {
