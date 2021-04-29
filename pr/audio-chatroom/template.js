@@ -237,7 +237,7 @@ export const parseTemplate = async (data, body, isUpdateTableRow) => {
       const oldDataList = oldData[name]
       oldDataList.forEach((v) => {
         for (let i = 0; i < list.length; i++) {
-          if (list[i].title === v.title) {
+          if (escapeHTML(list[i].title) === v.title) {
             list[i] = { ...list[i], ...v, name: list[i].name }
           }
         }
