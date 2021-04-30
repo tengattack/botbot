@@ -24,7 +24,8 @@ export const initClient = async () => {
   return { github, user }
 }
 
-export const beforeCreatePR = async (repoName) => {
+export const beforeCreatePR = async (project) => {
+  const repoName = getRepoName(project)
   const repoPath = getRepoPath(repoName)
   const branchName = `PR-${day().format('YYYY-MM-DD')}`
   await spawnAsync('git', ['fetch', 'upstream'], { cwd: repoPath })

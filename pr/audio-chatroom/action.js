@@ -1,7 +1,7 @@
 import fs from 'fs'
 import { spawnAsync } from '../../lib/common'
 import { parseTemplate } from './template'
-import { initClient, getRepoPath, getRepoName, beforeCreatePR, beforeUpdatePR } from '../utils'
+import { initClient, getRepoName, getRepoPath, beforeCreatePR, beforeUpdatePR } from '../utils'
 
 const getPRCommits = async (project, id, total) => {
   const { github, user } = await initClient()
@@ -26,7 +26,7 @@ const getPRCommits = async (project, id, total) => {
 
 const afterPRUpdated = async (project, data, newVersion) => {
   const { github, user } = await initClient()
-  const repoPath = getRepoPath(project)
+  const repoPath = getRepoPath(getRepoName(project))
   const commits = await getPRCommits(project, data.number, data.commits)
   const groupedCommits = {}
   commits.forEach((v) => {
@@ -117,8 +117,7 @@ const afterPRUpdated = async (project, data, newVersion) => {
 export const createPR = async (args) => {
   const { github, user } = await initClient()
   const { project, version } = args
-  const repoName = getRepoName(project)
-  const branchName = await beforeCreatePR(repoName)
+  const branchName = await beforeCreatePR(project)
   console.log('创建 PR 中……')
   const pull = await github.createPullRequest(project, {
     title: 'frontend: 将 master 最新提交合并至 stable 分支',
