@@ -100,8 +100,8 @@ const afterPRUpdated = async (project, data, newVersion) => {
       console.log('version 更新失败')
     }
   }
-  const titleMatch = /^(.*)([\(（].*[\)）])$/.exec(data.title)
-  const titleSuffix = newVersion && versionChanged ? `(${newVersion})` : ''
+  const titleMatch = /^(.*)(\s\().*(\))$/.exec(data.title)
+  const titleSuffix = newVersion && versionChanged ? ` (v${newVersion})` : ''
   const newTitle =
     titleMatch && titleMatch[1] && versionChanged
       ? `${titleMatch[1]}${titleSuffix}`
