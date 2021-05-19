@@ -34,7 +34,7 @@ const afterPRUpdated = async (project, data, newVersion) => {
     if (!groupedCommits[login]) {
       groupedCommits[login] = []
     }
-    groupedCommits[login].push(msg)
+    groupedCommits[login].push(msg.split(/[\r\n]+/)[0])
   })
   const commitUsers = Object.keys(groupedCommits)
   const oldReviewers = (data.requested_reviewers || []).map((v) => v.login).filter((v) => v)
