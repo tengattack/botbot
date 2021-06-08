@@ -29,7 +29,7 @@ export const beforeCreatePR = async (project) => {
   const repoPath = getRepoPath(repoName)
   const branchName = `PR-${day().format('YYYY-MM-DD')}`
   await spawnAsync('git', ['fetch', 'upstream'], { cwd: repoPath })
-  await spawnAsync('git', ['checkout', '-f', '-b', branchName, 'upstream/master'], {
+  await spawnAsync('git', ['checkout', '-f', '-B', branchName, 'upstream/master'], {
     cwd: repoPath,
   })
   await spawnAsync('git', ['push', '-u', 'origin', branchName], { cwd: repoPath })
@@ -45,9 +45,7 @@ export const beforeUpdatePR = async (project, id) => {
   if (!pull) {
     throw new Error(`未找到 ${user.login} 为仓库 ${repoName} 创建的 PR (#${id})`)
   }
-  // 要求 repo 里的 branchName(pull request head ref) 和本地的相同，且本地存在该分支
-  // 正常操作是没有问题的
-  await spawnAsync('git', ['checkout', '-f', pull.head.ref], { cwd: repoPath })
+  await spawnAsync('git', ['checkout', '-f', ,'-B', pull.head.ref], { cwd: repoPath })
   await spawnAsync('git', ['fetch', 'upstream'], { cwd: repoPath })
   await spawnAsync('git', ['merge', 'upstream/master'], { cwd: repoPath })
   await spawnAsync('git', ['push'], { cwd: repoPath })
