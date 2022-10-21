@@ -33,6 +33,7 @@
     "koa-bodyparser": "^3.2.0",
     "koa-logger": "^2.0.1",
     "koa-router": "^7.0.1",
+    "minimatch": "^5.1.0",
     "mysql": "^2.15.0",
     "phantomjs-prebuilt": "^2.1.14",
     "queue": "^4.2.1",

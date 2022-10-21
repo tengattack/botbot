@@ -2,6 +2,7 @@
 
 import path from 'path'
 import fs from 'fs'
+import minimatch from 'minimatch'
 import CDNClient from './lib/cdn'
 import LiveCDNClient from './lib/livecdn'
 import SLBClient from './lib/slb'
@@ -123,7 +124,9 @@ async function main() {
     const res = await cdn.listDomains(page)
     for (const domain of res.Domains.PageData) {
       if (domain.SslProtocol === 'on') {
-        if (args.domain_name && args.domain_name !== domain.DomainName) {
+        if (args.domain_name
+            && args.domain_name !== domain.DomainName
+            && !minimatch(domain.DomainName, args.domain_name)) {
           continue
         }
         try {
