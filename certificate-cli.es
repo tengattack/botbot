@@ -149,84 +149,90 @@ async function main() {
     }
   }
 
-  r = await slb.uploadCertificate(name, pubk, privk)
-
-  if (r && r.ServerCertificateId) {
-    const { ServerCertificateId } = r
-    r = await slb.getLoadBalancers()
-    for (const lb of r.LoadBalancers.LoadBalancer) {
-      const _lb = await slb.getLoadBalancer(lb.LoadBalancerId)
-      const pps = _lb.ListenerPortsAndProtocal.ListenerPortAndProtocal.filter(hasHttps)
-      let skip = args.domain_name ? true : false
-      for (const t of lb.Tags.Tag) {
-        if (t.TagKey === 'domain' && args.domain_name && args.domain_name === t.TagValue) {
-          skip = false  // ignore skip tag, must be matched exactly
-          break
-        }
-        if (t.TagKey === 'certificate-cli' && t.TagValue === 'skip') {
-          skip = true
-        }
+  let ServerCertificateId
+  r = await slb.getLoadBalancers()
+  const lbs = r.LoadBalancers
+  for (const lb of lbs.LoadBalancer) {
+    const _lb = await slb.getLoadBalancer(lb.LoadBalancerId)
+    const pps = _lb.ListenerPortsAndProtocal.ListenerPortAndProtocal.filter(hasHttps)
+    let skip = args.domain_name ? true : false
+    for (const t of lb.Tags.Tag) {
+      if (t.TagKey === 'domain' && args.domain_name && args.domain_name === t.TagValue) {
+        skip = false  // ignore skip tag, must be matched exactly
+        break
       }
-      if (skip) {
-        continue
-      }
-      for (const pp of pps) {
-        r = await slb.getLoadBalancerAttribute(lb.LoadBalancerId, pp.ListenerProtocal, pp.ListenerPort)
-        let opts = getPropertites(r, [
-          'Bandwidth',
-          'XForwardedFor',
-          'Scheduler',
-          'StickySession',
-          // 'StickySessionType',
-          // 'CookieTimeout',
-          // 'Cookie',
-          'HealthCheck',
-          // 'HealthCheckDomain',
-          // 'HealthCheckURI',
-          // 'HealthCheckConnectPort',
-          // 'HealthyThreshold',
-          // 'UnhealthyThreshold',
-          // 'HealthCheckTimeout',
-          // 'HealthCheckInterval',
-          // 'HealthCheckHttpCode',
-          // 'ServerCertificateId',
-          // 'CACertificateId',
-        ], true)
-        opts.ServerCertificateId = ServerCertificateId
-        if (opts.StickySession === 'on') {
-          opts = { ...opts, ...getPropertites(r, [
-            'StickySessionType',
-            'CookieTimeout',
-            'Cookie',
-          ]) }
-        }
-        if (opts.HealthCheck === 'on') {
-          opts = { ...opts, ...getPropertites(r, [
-            'HealthCheckDomain',
-            'HealthCheckURI',
-            'HealthCheckConnectPort',
-            'HealthyThreshold',
-            'UnhealthyThreshold',
-            'HealthCheckTimeout',
-            'HealthCheckInterval',
-            'HealthCheckHttpCode',
-          ]) }
-        }
-        opts = { ...opts, ...getPropertites(r, [
-          'VServerGroup',
-          'VServerGroupId',
-          'Gzip',
-        ]) }
-        r = await slb.setLoadBalancerAttribute(lb.LoadBalancerId, pp.ListenerProtocal, pp.ListenerPort, opts)
-        if (!r) {
-          console.log('slb set `' + lb.LoadBalancerName + '` certificate failed!')
-        } else {
-          console.log('slb set `' + lb.LoadBalancerName + '` certificate -> ' + ServerCertificateId)
-        }
+      if (t.TagKey === 'certificate-cli' && t.TagValue === 'skip') {
+        skip = true
       }
     }
-  } else {
-    console.log('slb upload certificate failed!', r)
+    if (skip) {
+      continue
+    }
+
+    if (!ServerCertificateId) {
+      r = await slb.uploadCertificate(name, pubk, privk)
+      if (r && r.ServerCertificateId) {
+        ServerCertificateId = r.ServerCertificateId
+      } else {
+        console.log('slb upload certificate failed!', r)
+        throw new Error('slb upload certificate failed!')
+      }
+    }
+
+    for (const pp of pps) {
+      r = await slb.getLoadBalancerAttribute(lb.LoadBalancerId, pp.ListenerProtocal, pp.ListenerPort)
+      let opts = getPropertites(r, [
+        'Bandwidth',
+        'XForwardedFor',
+        'Scheduler',
+        'StickySession',
+        // 'StickySessionType',
+        // 'CookieTimeout',
+        // 'Cookie',
+        'HealthCheck',
+        // 'HealthCheckDomain',
+        // 'HealthCheckURI',
+        // 'HealthCheckConnectPort',
+        // 'HealthyThreshold',
+        // 'UnhealthyThreshold',
+        // 'HealthCheckTimeout',
+        // 'HealthCheckInterval',
+        // 'HealthCheckHttpCode',
+        // 'ServerCertificateId',
+        // 'CACertificateId',
+      ], true)
+      opts.ServerCertificateId = ServerCertificateId
+      if (opts.StickySession === 'on') {
+        opts = { ...opts, ...getPropertites(r, [
+          'StickySessionType',
+          'CookieTimeout',
+          'Cookie',
+        ]) }
+      }
+      if (opts.HealthCheck === 'on') {
+        opts = { ...opts, ...getPropertites(r, [
+          'HealthCheckDomain',
+          'HealthCheckURI',
+          'HealthCheckConnectPort',
+          'HealthyThreshold',
+          'UnhealthyThreshold',
+          'HealthCheckTimeout',
+          'HealthCheckInterval',
+          'HealthCheckHttpCode',
+        ]) }
+      }
+      opts = { ...opts, ...getPropertites(r, [
+        'VServerGroup',
+        'VServerGroupId',
+        'Gzip',
+      ]) }
+      r = await slb.setLoadBalancerAttribute(lb.LoadBalancerId, pp.ListenerProtocal, pp.ListenerPort, opts)
+      if (!r) {
+        console.log('slb set `' + lb.LoadBalancerName + '` certificate failed!')
+      } else {
+        console.log('slb set `' + lb.LoadBalancerName + '` certificate -> ' + ServerCertificateId)
+      }
+    }
   }
 
   console.log('done.')
